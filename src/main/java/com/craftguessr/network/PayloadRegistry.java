@@ -38,5 +38,6 @@ public final class PayloadRegistry {
         s2c.register(Payloads.NoticeS2C.TYPE, Payloads.NoticeS2C.CODEC);
         s2c.register(Payloads.OpenScreenS2C.TYPE, Payloads.OpenScreenS2C.CODEC);
         s2c.register(Payloads.PingS2C.TYPE, Payloads.PingS2C.CODEC);
+        s2c.register(Payloads.CaptureRequestS2C.TYPE, Payloads.CaptureRequestS2C.CODEC);
     }
 }

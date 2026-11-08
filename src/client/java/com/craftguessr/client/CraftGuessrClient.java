@@ -65,6 +65,7 @@ public final class CraftGuessrClient implements ClientModInitializer {
             while (poolKey.consumeClick()) {
                 minecraft.gui.setScreen(new PoolScreen());
             }
+            CaptureSession.tick();
             applyDebugOverlayCurtain(minecraft);
         });
     }

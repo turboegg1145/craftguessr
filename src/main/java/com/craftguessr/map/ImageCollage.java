@@ -124,7 +124,24 @@ public final class ImageCollage {
     }
 
     /** JPEG encode with explicit quality (0.1 – 1.0); quality 0.7 keeps a 1024² collage well under 150 KB. */
+    /** JPEG has no alpha channel; flatten any alpha image into an opaque RGB image first. */
+    public static BufferedImage toRgb(BufferedImage image) {
+        if (image.getType() == BufferedImage.TYPE_INT_RGB) {
+            return image;
+        }
+        int width = image.getWidth();
+        int height = image.getHeight();
+        BufferedImage rgb = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        int[] row = new int[width];
+        for (int y = 0; y < height; y++) {
+            image.getRGB(0, y, width, 1, row, 0, width);
+            rgb.setRGB(0, y, width, 1, row, 0, width);
+        }
+        return rgb;
+    }
+
     public static byte[] toJpeg(BufferedImage image, float quality) throws IOException {
+        image = toRgb(image);
         ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
         ImageWriteParam param = writer.getDefaultWriteParam();
         if (param.canWriteCompressed()) {

@@ -133,7 +133,7 @@ public final class CaptureSession {
         }
         finished = true;
         try {
-            BufferedImage collage = new BufferedImage(COLLAGE_SIZE, COLLAGE_SIZE, BufferedImage.TYPE_INT_ARGB);
+            BufferedImage collage = new BufferedImage(COLLAGE_SIZE, COLLAGE_SIZE, BufferedImage.TYPE_INT_RGB);
             for (int i = 0; i < views.size() && i < 4; i++) {
                 int qx = (i % 2) * VIEW_SIZE;
                 int qy = (i / 2) * VIEW_SIZE;
