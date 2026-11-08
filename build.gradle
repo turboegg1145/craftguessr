@@ -44,6 +44,12 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
 	useJUnitPlatform()
+	systemProperty 'java.awt.headless', 'true'
+	// Live tests hit the real AI endpoints; opt in with -Pcraftguessr.live=true
+	systemProperty 'craftguessr.live', (findProperty('craftguessr.live') ?: 'false').toString()
+	systemProperty 'craftguessr.apiKey', (findProperty('craftguessr.apiKey') ?: '').toString()
+	systemProperty 'craftguessr.aiBase', (findProperty('craftguessr.aiBase') ?: 'https://api.deepseek.com').toString()
+	systemProperty 'craftguessr.aiModel', (findProperty('craftguessr.aiModel') ?: 'deepseek-flash').toString()
 }
 
 java {
