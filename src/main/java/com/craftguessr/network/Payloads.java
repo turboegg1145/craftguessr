@@ -243,7 +243,8 @@ public final class Payloads {
     }
 
     /** Requests one map tile at a zoom level. */
-    public record TileRequestC2S(String dimension, int zoom, int tileX, int tileZ) implements CustomPacketPayload {
+    public record TileRequestC2S(String dimension, int zoom, int tileX, int tileZ, int layer)
+            implements CustomPacketPayload {
         public static final Type<TileRequestC2S> TYPE = packetType("tile_request");
         public static final StreamCodec<RegistryFriendlyByteBuf, TileRequestC2S> CODEC = StreamCodec.of(
                 (buf, payload) -> {
@@ -251,8 +252,10 @@ public final class Payloads {
                     buf.writeVarInt(payload.zoom());
                     buf.writeVarInt(payload.tileX());
                     buf.writeVarInt(payload.tileZ());
+                    buf.writeVarInt(payload.layer());
                 },
-                buf -> new TileRequestC2S(buf.readUtf(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt()));
+                buf -> new TileRequestC2S(buf.readUtf(), buf.readVarInt(), buf.readVarInt(),
+                        buf.readVarInt(), buf.readVarInt()));
 
         @Override
         public Type<? extends CustomPacketPayload> type() {
@@ -400,7 +403,7 @@ public final class Payloads {
         }
     }
 
-    public record TileS2C(String dimension, int zoom, int tileX, int tileZ, int size, byte[] png)
+    public record TileS2C(String dimension, int zoom, int tileX, int tileZ, int layer, int size, byte[] png)
             implements CustomPacketPayload {
         public static final Type<TileS2C> TYPE = packetType("tile");
         public static final StreamCodec<RegistryFriendlyByteBuf, TileS2C> CODEC = StreamCodec.of(
@@ -409,11 +412,12 @@ public final class Payloads {
                     buf.writeVarInt(payload.zoom());
                     buf.writeVarInt(payload.tileX());
                     buf.writeVarInt(payload.tileZ());
+                    buf.writeVarInt(payload.layer());
                     buf.writeVarInt(payload.size());
                     buf.writeByteArray(payload.png() == null ? new byte[0] : payload.png());
                 },
                 buf -> new TileS2C(buf.readUtf(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(),
-                        buf.readVarInt(), buf.readByteArray()));
+                        buf.readVarInt(), buf.readVarInt(), buf.readByteArray()));
 
         @Override
         public Type<? extends CustomPacketPayload> type() {

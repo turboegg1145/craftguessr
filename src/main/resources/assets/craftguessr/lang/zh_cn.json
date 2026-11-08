@@ -191,5 +191,9 @@
   "craftguessr.screen.unknown": "未知界面：%s",
   "craftguessr.command.capture_started": "正在为你拍摄四向全景...",
   "craftguessr.capture.sent": "四向全景已拍摄并提交到地点池。",
-  "craftguessr.capture.failed": "四向全景拍摄失败，请查看日志。"
+  "craftguessr.capture.failed": "四向全景拍摄失败，请查看日志。",
+  "gui.craftguessr.map.layer": "图层：%s",
+  "gui.craftguessr.map.layer_surface": "地表",
+  "gui.craftguessr.map.layer_roof": "顶层（屋顶）",
+  "gui.craftguessr.map.layer_cave": "洞穴层"
 }

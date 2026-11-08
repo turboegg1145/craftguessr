@@ -26,6 +26,7 @@ public final class MapView {
     public int height;
 
     public String dimension = ClientState.FALLBACK_DIMENSION;
+    public int layer;
     public double centerX;
     public double centerZ;
     public double scale = 1.0;
@@ -130,12 +131,13 @@ public final class MapView {
                     g.fill((int) sx, (int) sy, (int) sx + 2, (int) sy + 2, 0x33FFFFFF);
                     continue;
                 }
-                String key = ClientImages.tileKey(dimension, lod, tileX, tileZ);
+                String key = ClientImages.tileKey(dimension, lod, tileX, tileZ, layer);
                 Identifier texture = ClientImages.get(key);
                 if (texture == null) {
                     g.fill((int) sx, (int) sy, (int) (sx + tilePx), (int) (sy + tilePx), 0x99131C24);
                     if (ClientState.get().shouldRequestTile(key)) {
-                        ClientPlayNetworking.send(new Payloads.TileRequestC2S(dimension, lod, tileX, tileZ));
+                        ClientPlayNetworking.send(new Payloads.TileRequestC2S(
+                                dimension, lod, tileX, tileZ, layer));
                     }
                     continue;
                 }

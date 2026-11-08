@@ -191,5 +191,9 @@
   "craftguessr.screen.unknown": "Unknown screen: %s",
   "craftguessr.command.capture_started": "Capturing a four-way quad around you...",
   "craftguessr.capture.sent": "Quad captured and submitted to the spot pool.",
-  "craftguessr.capture.failed": "Quad capture failed; check the log."
+  "craftguessr.capture.failed": "Quad capture failed; check the log.",
+  "gui.craftguessr.map.layer": "Layer: %s",
+  "gui.craftguessr.map.layer_surface": "Surface",
+  "gui.craftguessr.map.layer_roof": "Roof",
+  "gui.craftguessr.map.layer_cave": "Interior"
 }

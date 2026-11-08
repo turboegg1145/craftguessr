@@ -93,16 +93,17 @@ public final class MapTileService {
      * @param zoom pyramid level 0 (1:1) .. 2 (1:16); anything else is clamped
      * @return PNG bytes of a {@link TileGrid#TILE_SIZE} square, or an empty image when unloaded
      */
-    public byte[] tile(ServerLevel level, int zoom, int tileX, int tileZ) {
+    public byte[] tile(ServerLevel level, int zoom, int tileX, int tileZ, int layer) {
         int lod = Math.max(0, Math.min(TileGrid.LOD_COUNT - 1, zoom));
+        int layerId = Math.max(0, Math.min(2, layer));
         String dimension = level.dimension().identifier().toString();
-        String key = TileGrid.tileKey(dimension, lod, tileX, tileZ);
+        String key = TileGrid.tileKey(dimension, lod, tileX, tileZ) + "#" + layerId;
         byte[] cached = cache.get(key);
         if (cached != null) {
             return cached;
         }
         try {
-            Path file = fileFor(dimension, lod, tileX, tileZ);
+            Path file = fileFor(dimension, lod, tileX, tileZ, layerId);
             if (Files.isRegularFile(file)) {
                 byte[] bytes = Files.readAllBytes(file);
                 cache.put(key, bytes);
@@ -111,7 +112,7 @@ public final class MapTileService {
         } catch (IOException ignored) {
             // fall through to a render
         }
-        pending.computeIfAbsent(key, ignored -> new TileJob(level, lod, tileX, tileZ, key));
+        pending.computeIfAbsent(key, ignored -> new TileJob(level, lod, tileX, tileZ, layerId, key));
         return new byte[0];
     }
 
@@ -144,9 +145,13 @@ public final class MapTileService {
         }
     }
 
-    private Path fileFor(String dimension, int lod, int tileX, int tileZ) {
+    private Path fileFor(String dimension, int lod, int tileX, int tileZ, int layer) {
         String safe = dimension.replace(':', '_').replace('/', '_');
-        return root.resolve(safe).resolve(Integer.toString(lod)).resolve(tileX + "_" + tileZ + ".png");
+        Path base = root.resolve(safe).resolve(Integer.toString(lod));
+        if (layer > 0) {
+            base = base.resolve("layer" + layer);
+        }
+        return base.resolve(tileX + "_" + tileZ + ".png");
     }
 
     private final class TileJob {
@@ -154,6 +159,8 @@ public final class MapTileService {
         private final int lod;
         private final int tileX;
         private final int tileZ;
+        private final int layer;
+        private final boolean nether;
         private final int[] colors = new int[TileGrid.TILE_SIZE * TileGrid.TILE_SIZE];
         private final int[] heights = new int[TileGrid.TILE_SIZE * TileGrid.TILE_SIZE];
         private final int[] depths = new int[TileGrid.TILE_SIZE * TileGrid.TILE_SIZE];
@@ -161,11 +168,13 @@ public final class MapTileService {
         private int rows;
         private int column;
 
-        private TileJob(ServerLevel level, int lod, int tileX, int tileZ, String key) {
+        private TileJob(ServerLevel level, int lod, int tileX, int tileZ, int layer, String key) {
             this.level = level;
             this.lod = lod;
             this.tileX = tileX;
             this.tileZ = tileZ;
+            this.layer = layer;
+            this.nether = level.dimension() == net.minecraft.world.level.Level.NETHER;
         }
 
         /**
@@ -195,6 +204,38 @@ public final class MapTileService {
                             continue;
                         }
                         chunkBudget[0]--;
+                    }
+                    if (nether && layer > 0) {
+                        // Nether dual layer: layer 1 is the bedrock roof, layer 2 the caverns below it.
+                        int startY = layer == 1 ? 127 : 110;
+                        int endY = layer == 1 ? 100 : minY + 1;
+                        int foundY = Integer.MIN_VALUE;
+                        BlockState found = null;
+                        for (int y = startY; y > endY; y--) {
+                            pos.set(worldX, y, worldZ);
+                            BlockState candidate = level.getBlockState(pos);
+                            boolean roofBlock = layer == 1;
+                            if (!candidate.isAir() && (roofBlock || !candidate.is(Blocks.BEDROCK))) {
+                                foundY = y;
+                                found = candidate;
+                                break;
+                            }
+                        }
+                        if (found == null) {
+                            colors[index] = UNKNOWN;
+                            heights[index] = minY;
+                            continue;
+                        }
+                        int rgb;
+                        try {
+                            rgb = found.getMapColor(level, pos)
+                                    .calculateARGBColor(MapColor.Brightness.NORMAL);
+                        } catch (RuntimeException e) {
+                            rgb = UNKNOWN;
+                        }
+                        colors[index] = rgb & 0xFFFFFF;
+                        heights[index] = Math.max(minY, Math.min(maxY - 1, foundY));
+                        continue;
                     }
                     int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, worldX, worldZ);
                     int y = Math.max(minY + 1, Math.min(maxY - 1, surfaceY - 1));
@@ -245,7 +286,7 @@ public final class MapTileService {
 
         private void persist(byte[] png) {
             String dimension = level.dimension().identifier().toString();
-            Path file = fileFor(dimension, lod, tileX, tileZ);
+            Path file = fileFor(dimension, lod, tileX, tileZ, layer);
             try {
                 Files.createDirectories(file.getParent());
                 Path tmp = file.resolveSibling(file.getFileName() + ".tmp");

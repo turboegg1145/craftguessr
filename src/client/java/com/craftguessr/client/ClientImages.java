@@ -27,8 +27,8 @@ public final class ClientImages {
     private ClientImages() {
     }
 
-    public static String tileKey(String dimension, int lod, int tileX, int tileZ) {
-        return "tile/" + TileGrid.tileKey(dimension, lod, tileX, tileZ);
+    public static String tileKey(String dimension, int lod, int tileX, int tileZ, int layer) {
+        return "tile/" + TileGrid.tileKey(dimension, lod, tileX, tileZ) + "#" + layer;
     }
 
     public static String thumbKey(String spotId) {

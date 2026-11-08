@@ -55,6 +55,28 @@ public final class GuessScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("gui.craftguessr.map.cancel"),
                         button -> minecraft.gui.setScreen(null))
                 .bounds(width - 70, 4, 62, 18).build());
+        if (isNether()) {
+            addRenderableWidget(Button.builder(layerLabel(),
+                            button -> {
+                                map.layer = (map.layer + 1) % 3;
+                                button.setMessage(layerLabel());
+                            })
+                    .bounds(width - 200, 4, 120, 18).build());
+        }
+    }
+
+    private boolean isNether() {
+        String dimension = ClientState.get().dimension();
+        return dimension != null && dimension.contains("the_nether");
+    }
+
+    private Component layerLabel() {
+        String key = switch (map.layer) {
+            case 1 -> "gui.craftguessr.map.layer_roof";
+            case 2 -> "gui.craftguessr.map.layer_cave";
+            default -> "gui.craftguessr.map.layer_surface";
+        };
+        return Component.translatable("gui.craftguessr.map.layer", Component.translatable(key));
     }
 
     private void confirm() {

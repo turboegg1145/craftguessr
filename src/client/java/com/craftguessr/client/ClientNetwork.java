@@ -60,7 +60,8 @@ public final class ClientNetwork {
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.TileS2C.TYPE, (payload, context) ->
                 context.client().execute(() -> ClientState.get().putTile(
-                        TileGrid.tileKey(payload.dimension(), payload.zoom(), payload.tileX(), payload.tileZ()),
+                        ClientImages.tileKey(payload.dimension(), payload.zoom(),
+                                payload.tileX(), payload.tileZ(), payload.layer()),
                         payload.png())));
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.NoticeS2C.TYPE, (payload, context) ->

@@ -106,6 +106,11 @@ public final class GeoCommand {
                             ctx.getSource().sendSuccess(() -> Component.literal(info), false);
                             return 1;
                         }))
+                .then(Commands.literal("tiletest")
+                        .executes(ctx -> tileTest(ctx.getSource(), 0))
+                        .then(Commands.argument("layer", IntegerArgumentType.integer(0, 2))
+                                .executes(ctx -> tileTest(ctx.getSource(),
+                                        IntegerArgumentType.getInteger(ctx, "layer")))))
                 .then(Commands.literal("tokens")
                         .executes(ctx -> {
                             ServerGameManager manager = manager();
@@ -176,6 +181,28 @@ public final class GeoCommand {
     }
 
     /** Starts a manual quad-capture on the requesting client. */
+    /** Debug helper: render one tile around the sender and report its size. */
+    private static int tileTest(CommandSourceStack source, int layer) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = player(source);
+        ServerGameManager manager = manager();
+        if (manager == null) {
+            return 0;
+        }
+        var level = (net.minecraft.server.level.ServerLevel) player.level();
+        int px = (int) Math.floor(player.getX());
+        int pz = (int) Math.floor(player.getZ());
+        int tileX = Math.floorDiv(px, com.craftguessr.map.TileGrid.TILE_SIZE);
+        int tileZ = Math.floorDiv(pz, com.craftguessr.map.TileGrid.TILE_SIZE);
+        byte[] png = manager.tiles().tile(level, 0, tileX, tileZ, layer);
+        String message = png.length > 0
+                ? "tile " + level.dimension().identifier() + " layer=" + layer
+                        + " " + tileX + "/" + tileZ + " -> " + png.length + " bytes"
+                : "tile " + level.dimension().identifier() + " layer=" + layer
+                        + " " + tileX + "/" + tileZ + " pending";
+        source.sendSuccess(() -> Component.literal(message), false);
+        return 1;
+    }
+
     private static int capture(CommandSourceStack source, String title, String difficulty)
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = player(source);

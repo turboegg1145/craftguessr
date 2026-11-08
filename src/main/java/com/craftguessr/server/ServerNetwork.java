@@ -213,9 +213,11 @@ public final class ServerNetwork {
         if (!manager.tiles().allow(player.getUUID())) {
             return;
         }
-        byte[] png = manager.tiles().tile(level, payload.zoom(), payload.tileX(), payload.tileZ());
+        byte[] png = manager.tiles().tile(level, payload.zoom(), payload.tileX(), payload.tileZ(),
+                payload.layer());
         ServerPlayNetworking.send(player, new Payloads.TileS2C(payload.dimension(), payload.zoom(),
-                payload.tileX(), payload.tileZ(), com.craftguessr.map.TileGrid.TILE_SIZE, png));
+                payload.tileX(), payload.tileZ(), payload.layer(),
+                com.craftguessr.map.TileGrid.TILE_SIZE, png));
     }
 
     /** Utility for the debug command: base64 preview of one thumbnail. */
