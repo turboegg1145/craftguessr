@@ -335,8 +335,9 @@ public final class ServerGameManager {
             }
             enterArena(room, player, level);
         }
+        // Never ship the real coordinates: the guess map is panned by the player, not centred on the answer.
         broadcast(room, new Payloads.RoundStartS2C(room.round, room.totalRounds, room.spot.dimension(),
-                room.spot.x(), room.spot.z(), room.settings.movementRadius(), room.settings.secondsPerRound(),
+                0, 0, room.settings.movementRadius(), room.settings.secondsPerRound(),
                 room.settings.movement().canMove()));
         broadcastState(room, true);
     }

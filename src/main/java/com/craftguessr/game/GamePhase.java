@@ -18,4 +18,8 @@ public enum GamePhase {
     public boolean isPlaying() {
         return this == PREPARING || this == ACTIVE;
     }
+
+    public String translationKey() {
+        return "craftguessr.phase." + name().toLowerCase(java.util.Locale.ROOT);
+    }
 }
