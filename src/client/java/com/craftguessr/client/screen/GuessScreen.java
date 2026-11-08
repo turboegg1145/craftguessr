@@ -65,6 +65,11 @@ public final class GuessScreen extends Screen {
     }
 
     @Override
+    public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        ClientScreens.dimBackground(g);
+    }
+
+    @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(g, mouseX, mouseY, partialTick);
         map.draw(g, font);
@@ -75,9 +80,8 @@ public final class GuessScreen extends Screen {
                     String.format(java.util.Locale.ROOT, "%.2fx", map.scale)).getString(),
                     map.x + 5, map.y + 5, 0xFFB0BEC5);
             if (round.seconds() > 0) {
-                g.text(font, Component.translatable("hud.craftguessr.time",
-                        ClientNetwork.formatTime(round.seconds())).getString(),
-                        map.x + map.width - 70, map.y + 5, 0xFFFFD54F);
+                g.text(font, ClientNetwork.formatTime(round.seconds()),
+                        map.x + map.width - 60, map.y + 5, 0xFFFFD54F);
             }
         }
         if (status != null) {
@@ -88,13 +92,13 @@ public final class GuessScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (map.contains(event.x(), event.y())) {
-            if (event.button() == 1) {
+            if (event.button() == 3) {
                 dragging = true;
                 lastMouseX = event.x();
                 lastMouseY = event.y();
                 return true;
             }
-            if (event.button() == 0) {
+            if (event.button() == 1) {
                 map.hasPin = true;
                 map.pinX = map.screenToWorldX(event.x());
                 map.pinZ = map.screenToWorldY(event.y());

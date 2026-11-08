@@ -22,8 +22,10 @@ import java.util.List;
 /** Spot pool album: inspect, retitle, retag, delete, scan and submit spots. */
 public final class PoolScreen extends Screen {
 
-    private static final int LIST_WIDTH = 220;
-    private static final int MAX_ROWS = 9;
+    private static final int PAD = 8;
+    private static final int ROW_HEIGHT = 18;
+    private static final int ROW_GAP = 2;
+    private static final int THUMB = 64;
 
     private String selectedId;
     private FilterStrength strength = FilterStrength.BALANCED;
@@ -31,6 +33,11 @@ public final class PoolScreen extends Screen {
     private EditBox radiusBox;
     private ScanVerdict.Difficulty draftDifficulty = ScanVerdict.Difficulty.MEDIUM;
     private int shownPoolSize = -1;
+
+    private int listX;
+    private int listWidth;
+    private int rightX;
+    private int rightWidth;
 
     public PoolScreen() {
         super(Component.translatable("gui.craftguessr.pool.title"));
@@ -42,76 +49,106 @@ public final class PoolScreen extends Screen {
         repositionElements();
     }
 
+    private int listRows() {
+        return Math.max(1, (height - 26 - PAD) / (ROW_HEIGHT + ROW_GAP));
+    }
+
     @Override
     protected void repositionElements() {
         clearWidgets();
         List<Spot> pool = ClientState.get().pool();
         shownPoolSize = pool.size();
-        int listX = 8;
-        int rows = Math.min(pool.size(), MAX_ROWS);
+
+        listX = PAD;
+        listWidth = Math.max(120, Math.min(150, width / 3));
+        rightX = listX + listWidth + PAD;
+        rightWidth = Math.max(120, width - rightX - PAD);
+
         Spot selected = selectedId == null ? null : ClientState.get().poolSpot(selectedId);
-        if (selectedId != null && selected != null) {
+        if (selectedId != null && selected == null) {
+            selectedId = null;
+        }
+        if (selectedId == null && !pool.isEmpty()) {
+            selectedId = pool.get(0).id();
+            selected = pool.get(0);
             draftDifficulty = selected.difficulty();
         }
+        if (selected != null) {
+            draftDifficulty = selected.difficulty();
+        }
+
+        int rows = Math.min(pool.size(), listRows());
         for (int i = 0; i < rows; i++) {
             Spot spot = pool.get(i);
             boolean active = spot.id().equals(selectedId);
-            Button button = addRenderableWidget(Button.builder(Component.literal(
-                                    (active ? "> " : "") + (spot.title() == null || spot.title().isBlank()
-                                            ? spot.id() : spot.title()) + " [" + spot.difficulty().name() + "]"),
-                            b -> {
-                                selectedId = spot.id();
-                                draftDifficulty = spot.difficulty();
-                                rebuildWidgets();
-                            })
-                    .bounds(listX, 30 + i * 20, LIST_WIDTH, 18).build());
-            button.active = true;
+            String name = spot.title() == null || spot.title().isBlank()
+                    ? spot.x() + "," + spot.z() : spot.title();
+            if (name.length() > 14) {
+                name = name.substring(0, 13) + "…";
+            }
+            String label = (active ? "> " : "") + name + " [" + spot.difficulty().name().charAt(0) + "]";
+            addRenderableWidget(Button.builder(Component.literal(label), b -> {
+                        selectedId = spot.id();
+                        draftDifficulty = spot.difficulty();
+                        rebuildWidgets();
+                    })
+                    .bounds(listX, 26 + i * (ROW_HEIGHT + ROW_GAP), listWidth, ROW_HEIGHT).build());
         }
 
-        int rightX = 8 + LIST_WIDTH + 12;
-        int rightWidth = width - rightX - 8;
-        int controls = rightWidth - 140;
-        titleBox = new EditBox(font, rightX, 80, controls, 18,
+        int fieldWidth = Math.max(80, rightWidth - THUMB - 6);
+        int y = 56;
+
+        titleBox = new EditBox(font, rightX, y, fieldWidth, ROW_HEIGHT,
                 Component.translatable("gui.craftguessr.pool.title_label"));
         if (selected != null) {
             titleBox.setValue(selected.title() == null ? "" : selected.title());
         }
+        titleBox.setEditable(selected != null);
         addRenderableWidget(titleBox);
 
+        y += ROW_HEIGHT + ROW_GAP;
         addRenderableWidget(CycleButton.builder((ScanVerdict.Difficulty d) ->
                                 Component.translatable(d.translationKey()), draftDifficulty)
                 .withValues(ScanVerdict.Difficulty.values())
-                .create(rightX, 104, controls, 18, Component.translatable("gui.craftguessr.pool.difficulty"),
+                .create(rightX, y, fieldWidth, ROW_HEIGHT,
+                        Component.translatable("gui.craftguessr.pool.difficulty"),
                         (button, value) -> draftDifficulty = value));
 
+        y += ROW_HEIGHT + ROW_GAP;
+        int half = Math.max(50, (fieldWidth - 4) / 2);
         addRenderableWidget(Button.builder(Component.translatable("gui.craftguessr.pool.save"), b -> {
                     if (selectedId != null) {
                         ClientPlayNetworking.send(new Payloads.PoolEditC2S(selectedId,
                                 titleBox.getValue().trim(), draftDifficulty.name()));
                     }
                 })
-                .bounds(rightX, 128, Math.max(60, controls / 2 - 3), 18).build());
+                .bounds(rightX, y, half, ROW_HEIGHT).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.craftguessr.pool.delete"), b -> {
                     if (selectedId != null) {
                         ClientPlayNetworking.send(new Payloads.PoolDeleteC2S(selectedId));
                         selectedId = null;
+                        rebuildWidgets();
                     }
                 })
-                .bounds(rightX + Math.max(60, controls / 2 - 3) + 6, 128,
-                        Math.max(60, controls / 2 - 3), 18).build());
+                .bounds(rightX + half + 4, y, half, ROW_HEIGHT).build());
 
+        y += ROW_HEIGHT + ROW_GAP;
         addRenderableWidget(Button.builder(Component.translatable("gui.craftguessr.pool.submit"), b -> submit())
-                .bounds(rightX, 152, controls, 18).build());
+                .bounds(rightX, y, fieldWidth, ROW_HEIGHT).build());
 
-        radiusBox = new EditBox(font, rightX, 176, 56, 18, Component.translatable("gui.craftguessr.pool.radius"));
+        y += ROW_HEIGHT + ROW_GAP;
+        radiusBox = new EditBox(font, rightX, y, 44, ROW_HEIGHT,
+                Component.translatable("gui.craftguessr.pool.radius"));
         radiusBox.setValue("256");
         addRenderableWidget(radiusBox);
         addRenderableWidget(CycleButton.builder((FilterStrength s) -> Component.translatable(s.translationKey()),
                         strength)
                 .withValues(FilterStrength.values())
-                .create(rightX + 62, 176, Math.max(90, controls - 62), 18,
+                .create(rightX + 48, y, Math.max(60, fieldWidth - 48), ROW_HEIGHT,
                         Component.translatable("gui.craftguessr.pool.strength"),
                         (button, value) -> strength = value));
+
+        y += ROW_HEIGHT + ROW_GAP;
         addRenderableWidget(Button.builder(Component.translatable("gui.craftguessr.pool.scan"), b -> {
                     if (ClientState.get().scanning()) {
                         return;
@@ -119,10 +156,11 @@ public final class PoolScreen extends Screen {
                     ClientPlayNetworking.send(new Payloads.ScanRequestC2S(parseInt(radiusBox.getValue(), 256),
                             strength.name(), ClientState.get().dimension()));
                 })
-                .bounds(rightX, 200, 120, 18).build());
+                .bounds(rightX, y, fieldWidth, ROW_HEIGHT).build());
+
         addRenderableWidget(Button.builder(Component.translatable("gui.craftguessr.map.cancel"),
                         b -> minecraft.gui.setScreen(null))
-                .bounds(width - 70, 4, 62, 18).build());
+                .bounds(width - 70, 4, 62, ROW_HEIGHT).build());
 
         if (selected != null && ClientState.get().shouldRequestThumb(selected.id())) {
             ClientPlayNetworking.send(new Payloads.ThumbRequestC2S(selected.id()));
@@ -156,43 +194,52 @@ public final class PoolScreen extends Screen {
     }
 
     @Override
+    public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        ClientScreens.dimBackground(g);
+    }
+
+    @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(g, mouseX, mouseY, partialTick);
-        g.text(font, title.getString(), 8, 8, 0xFFFFFFFF);
+        g.text(font, title.getString(), PAD, 8, 0xFFFFFFFF);
+
         List<Spot> pool = ClientState.get().pool();
         if (pool.isEmpty()) {
-            g.centeredText(font, Component.translatable("gui.craftguessr.pool.no_spots").getString(),
-                    width / 2, height / 2, 0xFF90A4AE);
+            g.text(font, Component.translatable("gui.craftguessr.pool.no_spots").getString(),
+                    listX, 30, 0xFF90A4AE);
         }
+
         Spot selected = selectedId == null ? null : ClientState.get().poolSpot(selectedId);
-        int rightX = 8 + LIST_WIDTH + 12;
         if (selected != null) {
-            g.text(font, selected.id(), rightX, 32, 0xFFB0BEC5);
-            g.text(font, selected.coordinates() + "  " + ClientNetwork.dimensionName(selected.dimension()),
-                    rightX, 44, 0xFF90A4AE);
-            g.text(font, Component.translatable("gui.craftguessr.pool.title_label").getString(),
-                    rightX, 70, 0xFFB0BEC5);
-            int rightWidth = width - rightX - 8;
-            int thumbX = rightX + Math.max(0, rightWidth - 132);
+            g.text(font, selected.coordinates(), rightX, 28, 0xFF90A4AE);
+            g.text(font, ClientNetwork.dimensionName(selected.dimension()) + "  " + selected.id(),
+                    rightX, 40, 0xFF78858C);
+
+            int thumbX = rightX + Math.max(0, rightWidth - THUMB);
+            int thumbY = 26;
+            g.fill(thumbX - 1, thumbY - 1, thumbX + THUMB + 1, thumbY + THUMB + 1, 0xFF2A3742);
             Identifier thumb = ClientImages.get(ClientImages.thumbKey(selected.id()));
             if (thumb != null) {
                 g.pose().pushMatrix();
-                g.pose().translate(thumbX, 32);
-                g.pose().scale(0.5F, 0.5F);
+                g.pose().translate(thumbX, thumbY);
+                g.pose().scale(THUMB / 256.0F, THUMB / 256.0F);
                 g.blit(RenderPipelines.GUI_TEXTURED, thumb, 0, 0, 0.0F, 0.0F, 256, 256, 256, 256);
                 g.pose().popMatrix();
             } else {
-                g.fill(thumbX, 32, thumbX + 128, 32 + 128, 0xFF14202B);
+                g.centeredText(font, "…", thumbX + THUMB / 2, thumbY + THUMB / 2 - 4, 0xFF78909C);
                 if (ClientState.get().shouldRequestThumb(selected.id())) {
                     ClientPlayNetworking.send(new Payloads.ThumbRequestC2S(selected.id()));
                 }
             }
+            g.text(font, Component.translatable("gui.craftguessr.pool.title_label").getString(),
+                    rightX, 48, 0xFFB0BEC5);
         }
+
         Payloads.ScanProgressS2C scan = ClientState.get().scan();
         if (scan != null) {
-            String text = Component.translatable(scan.state(), scan.percent(), scan.kept(), scan.rejected()).getString()
-                    + "  [" + scan.promptTokens() + "/" + scan.completionTokens() + "]";
-            g.text(font, text, rightX, 244, scan.finished() ? 0xFF9CCC65 : 0xFFFFD54F);
+            String text = Component.translatable(scan.state(), scan.percent(), scan.kept(), scan.rejected())
+                    .getString() + "  [" + scan.promptTokens() + "/" + scan.completionTokens() + "]";
+            g.text(font, text, rightX, height - 14, scan.finished() ? 0xFF9CCC65 : 0xFFFFD54F);
         }
     }
 

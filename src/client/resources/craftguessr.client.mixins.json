@@ -2,7 +2,9 @@
 	"required": true,
 	"package": "com.craftguessr.client.mixin",
 	"compatibilityLevel": "JAVA_25",
-	"client": [],
+	"client": [
+		"GlBackendMixin"
+	],
 	"injectors": {
 		"defaultRequire": 1
 	}

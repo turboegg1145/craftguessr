@@ -4,6 +4,7 @@ import com.craftguessr.client.ClientNetwork;
 import com.craftguessr.client.ClientState;
 import com.craftguessr.game.RoundReveal;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /** Central router for every CraftGuessr screen. */
 public final class ClientScreens {
@@ -39,5 +40,10 @@ public final class ClientScreens {
 
     public static void close() {
         Minecraft.getInstance().gui.setScreen(null);
+    }
+
+    /** Translucent scrim so screens stay readable over bright terrain. */
+    static void dimBackground(GuiGraphicsExtractor g) {
+        g.fillGradient(0, 0, 10_000, 10_000, 0xC8141414, 0xE0141414);
     }
 }

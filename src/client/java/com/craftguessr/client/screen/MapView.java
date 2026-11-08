@@ -16,7 +16,7 @@ import java.util.List;
 /** Pannable, zoomable north-up map canvas fed by server-side tile PNGs. */
 public final class MapView {
 
-    private static final double MIN_SCALE = 1.0 / 16.0;
+    private static final double MIN_SCALE = 1.0 / 8.0;
     private static final double MAX_SCALE = 8.0;
     private static final int MAX_VISIBLE_TILES = 512;
 
@@ -28,7 +28,7 @@ public final class MapView {
     public String dimension = ClientState.FALLBACK_DIMENSION;
     public double centerX;
     public double centerZ;
-    public double scale = 0.25;
+    public double scale = 1.0;
 
     public boolean hasPin;
     public double pinX;
