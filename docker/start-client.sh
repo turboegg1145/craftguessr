@@ -14,11 +14,12 @@ rm -f "/tmp/.X${DISPLAY#:}-lock" 2>/dev/null || true
 Xvfb "$DISPLAY" -screen 0 "$MC_SCREEN" -nolisten tcp -ac +extension GLX +render &
 XVFB_PID=$!
 
-for _ in $(seq 1 50); do
-  if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then break; fi
+X_SOCKET="/tmp/.X11-unix/X${DISPLAY#:}"
+for _ in $(seq 1 100); do
+  if [ -S "$X_SOCKET" ]; then break; fi
   sleep 0.2
 done
-xdpyinfo -display "$DISPLAY" >/dev/null 2>&1 || { echo "[client] Xvfb failed to start"; exit 1; }
+[ -S "$X_SOCKET" ] || { echo "[client] Xvfb failed to start (no $X_SOCKET)"; exit 1; }
 echo "[client] Xvfb up (pid ${XVFB_PID})"
 glxinfo -B 2>/dev/null | sed -n '1,6p' || true
 
@@ -31,4 +32,8 @@ cleanup() { kill "$XVFB_PID" 2>/dev/null || true; }
 trap cleanup EXIT
 
 # Hand over to Gradle; args are forwarded, e.g. `... --args="--username Dev"`.
+if [ -n "${CRAFTGUESSR_LAUNCH:-}" ]; then
+  # Pre-built launch command (used to run the client while Gradle is busy elsewhere).
+  exec bash -lc "$CRAFTGUESSR_LAUNCH"
+fi
 exec ./gradlew runClient --console=plain "$@"

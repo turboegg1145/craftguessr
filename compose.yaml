@@ -57,6 +57,8 @@ services:
     volumes:
       - .:/workspace
       - gradle-home:/home/dev/.gradle
+      # Xvfb refuses to run as non-root without an existing socket directory.
+      - ./run/x11:/tmp/.X11-unix:rw
     ports:
       - "6083:6080" # noVNC
       - "5907:5900" # raw VNC

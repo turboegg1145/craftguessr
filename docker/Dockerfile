@@ -53,7 +53,7 @@ RUN groupadd -g "${GID}" dev \
  && chown -R "${UID}:${GID}" /workspace /home/dev /tmp/runtime-dev
 
 COPY start-client.sh /usr/local/bin/start-client.sh
-RUN chmod +x /usr/local/bin/start-client.sh
+RUN chmod 755 /usr/local/bin/start-client.sh
 
 USER dev
 WORKDIR /workspace

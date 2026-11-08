@@ -10,6 +10,21 @@ repositories {
 loom {
 	splitEnvironmentSourceSets()
 
+	runs {
+		client {
+			client()
+			// Dev client logs straight into a server when CRAFTGUESSR_QUICKPLAY is set,
+			// e.g. docker compose run -e CRAFTGUESSR_QUICKPLAY=dev:25565 client
+			def quickplay = System.getenv('CRAFTGUESSR_QUICKPLAY')
+			if (quickplay != null && !quickplay.isBlank()) {
+				programArgs '--quickPlayMultiplayer', quickplay
+			}
+			if (System.getenv('CRAFTGUESSR_SOFTWARE_GL') != null) {
+				jvmArgs '-Dcraftguessr.softwareGL=1'
+			}
+		}
+	}
+
 	mods {
 		"craftguessr" {
 			sourceSet sourceSets.main
@@ -73,5 +88,20 @@ publishing {
 		create("mavenJava", MavenPublication) {
 			from components.java
 		}
+	}
+}
+
+// Prints everything needed to launch a run task without Gradle, so the dev
+// server and a dev client can run at the same time (they share one Gradle home).
+tasks.register('dumpRunServer') {
+	dependsOn 'classes', 'processResources'
+	def run = tasks.named('runServer')
+	doLast {
+		def t = run.get()
+		println 'MAIN#' + t.mainClass.get()
+		println 'WORKDIR#' + t.workingDir
+		println 'JVM#' + t.jvmArgs.join('\u0001')
+		println 'ARGS#' + t.args.join('\u0001')
+		println 'CP#' + t.classpath.asPath
 	}
 }
