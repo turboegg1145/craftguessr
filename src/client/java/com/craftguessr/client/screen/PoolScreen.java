@@ -175,7 +175,7 @@ public final class PoolScreen extends Screen {
         var pos = player.position();
         ClientPlayNetworking.send(new Payloads.SubmitSpotC2S(ClientState.get().dimension(),
                 (int) Math.floor(pos.x), (int) Math.floor(pos.y), (int) Math.floor(pos.z),
-                player.getYRot(), player.getXRot(), new byte[0]));
+                player.getYRot(), player.getXRot(), "", "", new byte[0]));
     }
 
     private static int parseInt(String text, int fallback) {

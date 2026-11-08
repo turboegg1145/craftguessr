@@ -201,6 +201,7 @@ public final class Payloads {
 
     /** Manual spot submission from the player's current viewpoint, with a client-made collage. */
     public record SubmitSpotC2S(String dimension, int x, int y, int z, float yaw, float pitch,
+                                String title, String difficulty,
                                 byte[] collageJpeg) implements CustomPacketPayload {
         public static final Type<SubmitSpotC2S> TYPE = packetType("submit_spot");
         public static final StreamCodec<RegistryFriendlyByteBuf, SubmitSpotC2S> CODEC = StreamCodec.of(
@@ -211,10 +212,29 @@ public final class Payloads {
                     buf.writeVarInt(payload.z());
                     buf.writeFloat(payload.yaw());
                     buf.writeFloat(payload.pitch());
+                    buf.writeUtf(payload.title() == null ? "" : payload.title(), 128);
+                    buf.writeUtf(payload.difficulty() == null ? "" : payload.difficulty(), 32);
                     buf.writeByteArray(payload.collageJpeg() == null ? new byte[0] : payload.collageJpeg());
                 },
                 buf -> new SubmitSpotC2S(buf.readUtf(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(),
-                        buf.readFloat(), buf.readFloat(), buf.readByteArray()));
+                        buf.readFloat(), buf.readFloat(), buf.readUtf(128), buf.readUtf(32),
+                        buf.readByteArray()));
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    /** Asks the client to run the quad-capture tour and submit the resulting spot. */
+    public record CaptureRequestS2C(String title, String difficulty) implements CustomPacketPayload {
+        public static final Type<CaptureRequestS2C> TYPE = packetType("capture_request");
+        public static final StreamCodec<RegistryFriendlyByteBuf, CaptureRequestS2C> CODEC = StreamCodec.of(
+                (buf, payload) -> {
+                    buf.writeUtf(payload.title() == null ? "" : payload.title(), 128);
+                    buf.writeUtf(payload.difficulty() == null ? "" : payload.difficulty(), 32);
+                },
+                buf -> new CaptureRequestS2C(buf.readUtf(128), buf.readUtf(32)));
 
         @Override
         public Type<? extends CustomPacketPayload> type() {

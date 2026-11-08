@@ -188,5 +188,8 @@
   "craftguessr.scan.cancelled": "Scan cancelled.",
   "craftguessr.scan.failed": "Scan failed.",
   "craftguessr.scan.error": "Scan error.",
-  "craftguessr.screen.unknown": "Unknown screen: %s"
+  "craftguessr.screen.unknown": "Unknown screen: %s",
+  "craftguessr.command.capture_started": "Capturing a four-way quad around you...",
+  "craftguessr.capture.sent": "Quad captured and submitted to the spot pool.",
+  "craftguessr.capture.failed": "Quad capture failed; check the log."
 }

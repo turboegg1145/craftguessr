@@ -188,5 +188,8 @@
   "craftguessr.scan.cancelled": "扫描已取消。",
   "craftguessr.scan.failed": "扫描失败。",
   "craftguessr.scan.error": "扫描出错。",
-  "craftguessr.screen.unknown": "未知界面：%s"
+  "craftguessr.screen.unknown": "未知界面：%s",
+  "craftguessr.command.capture_started": "正在为你拍摄四向全景...",
+  "craftguessr.capture.sent": "四向全景已拍摄并提交到地点池。",
+  "craftguessr.capture.failed": "四向全景拍摄失败，请查看日志。"
 }

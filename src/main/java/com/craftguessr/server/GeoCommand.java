@@ -86,6 +86,15 @@ public final class GeoCommand {
                                                     StringArgumentType.getString(ctx, "strength"), "");
                                             return 1;
                                         }))))
+                .then(Commands.literal("capture")
+                        .executes(ctx -> capture(ctx.getSource(), "", ""))
+                        .then(Commands.argument("title", StringArgumentType.string())
+                                .executes(ctx -> capture(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "title"), ""))
+                                .then(Commands.argument("difficulty", StringArgumentType.word())
+                                        .executes(ctx -> capture(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "title"),
+                                                StringArgumentType.getString(ctx, "difficulty"))))))
                 .then(Commands.literal("tokens")
                         .executes(ctx -> {
                             ServerGameManager manager = manager();
@@ -153,6 +162,15 @@ public final class GeoCommand {
 
     private static ServerPlayer player(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         return source.getPlayerOrException();
+    }
+
+    /** Starts a manual quad-capture on the requesting client. */
+    private static int capture(CommandSourceStack source, String title, String difficulty)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = player(source);
+        ServerPlayNetworking.send(player, new Payloads.CaptureRequestS2C(title, difficulty));
+        source.sendSuccess(() -> Component.translatable("craftguessr.command.capture_started"), false);
+        return 1;
     }
 
     private static void open(CommandSourceStack source, String screen, String roomId) {

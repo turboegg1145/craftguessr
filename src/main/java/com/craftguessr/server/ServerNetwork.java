@@ -153,9 +153,13 @@ public final class ServerNetwork {
         try {
             String id = "manual-" + Long.toHexString(System.currentTimeMillis()) + "-"
                     + Integer.toHexString(player.getUUID().hashCode());
+            com.craftguessr.ai.ScanVerdict.Difficulty difficulty =
+                    com.craftguessr.ai.ScanVerdict.Difficulty.parse(payload.difficulty(),
+                            com.craftguessr.ai.ScanVerdict.Difficulty.MEDIUM);
+            String title = payload.title() == null ? "" : payload.title().trim();
             Spot spot = new Spot(id, payload.dimension(), payload.x(), payload.y(), payload.z(),
-                    payload.yaw(), payload.pitch(), com.craftguessr.ai.ScanVerdict.Difficulty.MEDIUM,
-                    "", "", "", Spot.Source.MANUAL, System.currentTimeMillis());
+                    payload.yaw(), payload.pitch(), difficulty,
+                    title, "", "", Spot.Source.MANUAL, System.currentTimeMillis());
             byte[] collage = payload.collageJpeg();
             if (collage == null || collage.length == 0) {
                 collage = renderPreview(level, payload.x(), payload.y(), payload.z(), payload.yaw());

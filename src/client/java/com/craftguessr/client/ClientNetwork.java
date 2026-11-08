@@ -73,6 +73,9 @@ public final class ClientNetwork {
         ClientPlayNetworking.registerGlobalReceiver(Payloads.OpenScreenS2C.TYPE, (payload, context) ->
                 context.client().execute(() -> ClientScreens.open(payload.screen(), payload.roomId())));
 
+        ClientPlayNetworking.registerGlobalReceiver(Payloads.CaptureRequestS2C.TYPE, (payload, context) ->
+                context.client().execute(() -> CaptureSession.start(payload.title(), payload.difficulty())));
+
         ClientPlayNetworking.registerGlobalReceiver(Payloads.PingS2C.TYPE, (payload, context) ->
                 context.client().execute(() -> {
                     ClientState.get().setPing(payload);
