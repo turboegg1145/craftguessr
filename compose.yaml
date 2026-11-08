@@ -1,0 +1,66 @@
+name: geoguessr
+
+x-common: &common
+  image: geoguessr:26.3-java25
+  build:
+    context: ./docker
+    args:
+      UID: "${MCDEV_UID:-1002}"
+      GID: "${MCDEV_GID:-1003}"
+      GRADLE_VERSION: "9.8.2"
+  working_dir: /workspace
+  stdin_open: true
+  tty: true
+  environment: &common-env
+    GRADLE_USER_HOME: /home/dev/.gradle
+    TZ: Asia/Shanghai
+    # No sound card is exposed to the container, so OpenAL-soft falls back to a
+    # silent null device instead of spamming "Failed to open OpenAL device".
+    # Want real audio? Add `- /dev/snd:/dev/snd` and set ALSOFT_DRIVERS=alsa.
+    ALSOFT_DRIVERS: "${ALSOFT_DRIVERS:-null}"
+
+services:
+  # Long-lived toolbox container: build / test / runServer / plain shell.
+  # Everything (JDK, Gradle, caches) stays inside Docker.
+  dev:
+    <<: *common
+    container_name: geoguessr-dev
+    volumes:
+      - .:/workspace
+      - gradle-home:/home/dev/.gradle
+
+  # Game client drawn on the VM's existing X display (:1, the desktop you already
+  # see over VNC). Nothing extra is published.
+  client:
+    <<: *common
+    shm_size: 512m
+    environment:
+      <<: *common-env
+      DISPLAY: "${HOST_DISPLAY:-:1}"
+    volumes:
+      - .:/workspace
+      - gradle-home:/home/dev/.gradle
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    command: ["./gradlew", "runClient", "--console=plain"]
+
+  # Fallback: own virtual display inside the container + noVNC, for when the
+  # host desktop is unavailable. View at http://<vm-ip>:6083/vnc.html
+  client-vnc:
+    <<: *common
+    shm_size: 1g
+    environment:
+      <<: *common-env
+      DISPLAY: ":99"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      MESA_LOADER_DRIVER_OVERRIDE: llvmpipe
+      MC_SCREEN: "1600x900x24"
+    volumes:
+      - .:/workspace
+      - gradle-home:/home/dev/.gradle
+    ports:
+      - "6083:6080" # noVNC
+      - "5907:5900" # raw VNC
+    command: ["/usr/local/bin/start-client.sh"]
+
+volumes:
+  gradle-home:
