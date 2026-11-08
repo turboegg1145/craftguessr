@@ -59,12 +59,18 @@ public final class ServerGameManager {
     private final ScanService scanService;
     private final com.craftguessr.ai.TokenLedger ledger = new com.craftguessr.ai.TokenLedger();
     private final MapTileService tiles = new MapTileService(CraftGuessr.dataDirectory().resolve("tiles"));
+    private final com.craftguessr.server.player.PlayerSnapshots snapshots;
+    private boolean rulesOverridden;
+    private boolean spiesAllowed = true;
+    private boolean mobGriefingAllowed = true;
 
     public ServerGameManager(MinecraftServer server, GameSettings settings) {
         this.server = server;
         this.settings = settings;
         this.repository = com.craftguessr.game.SpotRepository.open(CraftGuessr.dataDirectory());
         this.scanService = new ScanService(this);
+        this.snapshots = server.overworld().getDataStorage()
+                .computeIfAbsent(com.craftguessr.server.player.PlayerSnapshots.TYPE);
         instance = this;
     }
 
@@ -347,6 +353,7 @@ public final class ServerGameManager {
             state.online = true;
             if (state.snapshot == null) {
                 state.snapshot = Snapshot.capture(player);
+                snapshots.put(player.getUUID(), state.snapshot);
             }
             enterArena(room, player, level);
         }
@@ -424,6 +431,7 @@ public final class ServerGameManager {
             }
             state.snapshot = null;
             state.guess = null;
+            snapshots.remove(state.uuid);
         }
         room.spot = null;
         room.round = 0;
@@ -457,8 +465,10 @@ public final class ServerGameManager {
         }
         player.setGameMode(snapshot.gameMode());
         player.setInvisible(snapshot.invisible());
+        player.setPermanentlyInvulnerable(snapshot.invulnerable());
         player.setHealth(Math.min(snapshot.health(), player.getMaxHealth()));
         player.fallDistance = 0.0F;
+        snapshots.remove(player.getUUID());
     }
 
     private BlockPos safeSpot(Spot spot, ServerLevel level) {
@@ -514,6 +524,92 @@ public final class ServerGameManager {
             if (now - room.lastStateMillis >= 1000L) {
                 broadcastState(room, false);
             }
+        }
+        protectTick();
+    }
+
+    // ================================================================ arena protection
+
+    /** True while this player sits inside a live round and must not take damage. */
+    public boolean isProtectedPlayer(ServerPlayer player) {
+        Room room = roomOf(player.getUUID());
+        return room != null && room.phase.isPlaying();
+    }
+
+    /** Crash recovery: put a player back if the previous server run died mid-round. */
+    public boolean restorePending(ServerPlayer player) {
+        com.craftguessr.server.player.Snapshot snapshot = snapshots.get(player.getUUID());
+        if (snapshot == null) {
+            return false;
+        }
+        restore(player, snapshot);
+        return true;
+    }
+
+    private void protectTick() {
+        boolean anyPlaying = false;
+        for (Room room : rooms.values()) {
+            if (!room.phase.isPlaying()) {
+                continue;
+            }
+            anyPlaying = true;
+            for (PlayerState state : room.players.values()) {
+                ServerPlayer player = online(state.uuid);
+                if (player == null) {
+                    continue;
+                }
+                if (!player.isPermanentlyInvulnerable()) {
+                    player.setPermanentlyInvulnerable(true);
+                }
+                if (player.getFoodData().getFoodLevel() < 20) {
+                    player.getFoodData().setFoodLevel(20);
+                }
+                if (player.getFoodData().getSaturationLevel() < 5.0F) {
+                    player.getFoodData().setSaturation(5.0F);
+                }
+                if (player.isOnFire()) {
+                    player.clearFire();
+                }
+            }
+            clearHostiles(room);
+        }
+        applyGameRules(anyPlaying);
+    }
+
+    /** Removes hostile mobs from the arena plus its 64-block safety margin. */
+    private void clearHostiles(Room room) {
+        if (room.spot == null) {
+            return;
+        }
+        ServerLevel level = levelOf(room.spot.dimension());
+        if (level == null) {
+            return;
+        }
+        double radius = room.settings.movementRadius() + 64.0;
+        double cx = room.spot.x() + 0.5;
+        double cz = room.spot.z() + 0.5;
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(
+                cx - radius, level.getMinY(), cz - radius,
+                cx + radius, level.getMaxY(), cz + radius);
+        for (net.minecraft.world.entity.monster.Monster monster
+                : level.getEntitiesOfClass(net.minecraft.world.entity.monster.Monster.class, box)) {
+            monster.discard();
+        }
+    }
+
+    /** Mob spawning and griefing are disabled only while somebody is playing. */
+    private void applyGameRules(boolean anyPlaying) {
+        net.minecraft.world.level.gamerules.GameRules rules = server.getGameRules();
+        if (anyPlaying && !rulesOverridden) {
+            spiesAllowed = rules.get(net.minecraft.world.level.gamerules.GameRules.SPAWN_MONSTERS);
+            mobGriefingAllowed = rules.get(net.minecraft.world.level.gamerules.GameRules.MOB_GRIEFING);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWN_MONSTERS, false, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.MOB_GRIEFING, false, server);
+            rulesOverridden = true;
+        } else if (!anyPlaying && rulesOverridden) {
+            rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWN_MONSTERS, spiesAllowed, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.MOB_GRIEFING, mobGriefingAllowed, server);
+            rulesOverridden = false;
         }
     }
 
@@ -669,6 +765,7 @@ public final class ServerGameManager {
         }
         rooms.clear();
         roomOf.clear();
+        applyGameRules(false);
     }
 
     private void spawnRevealFx(Room room) {

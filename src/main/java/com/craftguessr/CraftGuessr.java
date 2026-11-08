@@ -60,11 +60,20 @@ public final class CraftGuessr implements ModInitializer {
             }
         });
 
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DAMAGE.register(
+                (entity, source, amount) -> {
+                    ServerGameManager manager = ServerGameManager.get();
+                    return manager == null
+                            || !(entity instanceof net.minecraft.server.level.ServerPlayer player)
+                            || !manager.isProtectedPlayer(player);
+                });
+
         ServerPlayConnectionEvents.JOIN.register((handler, sender, mcServer) -> {
             ServerGameManager manager = ServerGameManager.get();
             if (manager == null) {
                 return;
             }
+            manager.restorePending(handler.player);
             int[] center = manager.mapCenter();
             ServerPlayNetworking.send(handler.player, new Payloads.PingS2C(VERSION,
                     !manager.settings().apiKey.isBlank(), center[0], center[1]));
