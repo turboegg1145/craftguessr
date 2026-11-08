@@ -175,6 +175,7 @@ public final class ServerNetwork {
             manager.repository().add(spot);
             manager.notice(player, "craftguessr.message.spot_added", false);
             sendPool(player);
+            manager.tour().onSubmitted(player);
         } catch (IOException e) {
             CraftGuessr.LOGGER.warn("Manual spot submit failed: {}", e.toString());
             manager.notice(player, "craftguessr.message.spot_failed", true);

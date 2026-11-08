@@ -57,6 +57,7 @@ public final class ServerGameManager {
     private final Map<String, Room> rooms = new LinkedHashMap<>();
     private final Map<UUID, String> roomOf = new HashMap<>();
     private final ScanService scanService;
+    private final TourService tourService;
     private final com.craftguessr.ai.TokenLedger ledger = new com.craftguessr.ai.TokenLedger();
     private final MapTileService tiles = new MapTileService(CraftGuessr.dataDirectory().resolve("tiles"));
     private final com.craftguessr.server.player.PlayerSnapshots snapshots;
@@ -69,6 +70,7 @@ public final class ServerGameManager {
         this.settings = settings;
         this.repository = com.craftguessr.game.SpotRepository.open(CraftGuessr.dataDirectory());
         this.scanService = new ScanService(this);
+        this.tourService = new TourService(this);
         this.snapshots = server.overworld().getDataStorage()
                 .computeIfAbsent(com.craftguessr.server.player.PlayerSnapshots.TYPE);
         instance = this;
@@ -135,6 +137,10 @@ public final class ServerGameManager {
 
     public ScanService scans() {
         return scanService;
+    }
+
+    public TourService tour() {
+        return tourService;
     }
 
     public com.craftguessr.ai.TokenLedger ledger() {
@@ -498,6 +504,7 @@ public final class ServerGameManager {
         tiles.tick();
         long now = System.currentTimeMillis();
         scanService.tick();
+        tourService.tick();
         List<Room> snapshot = new ArrayList<>(rooms.values());
         for (Room room : snapshot) {
             switch (room.phase) {
@@ -742,6 +749,7 @@ public final class ServerGameManager {
     /** Removes a player who is disconnecting, restoring their pre-round snapshot. */
     public void onDisconnect(ServerPlayer player) {
         scanService.cancel(player.getUUID());
+        tourService.onDisconnect(player);
         Room room = roomOf(player.getUUID());
         if (room == null) {
             return;

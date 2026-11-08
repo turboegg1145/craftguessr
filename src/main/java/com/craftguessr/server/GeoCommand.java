@@ -87,6 +87,21 @@ public final class GeoCommand {
                                                     StringArgumentType.getString(ctx, "strength"), "");
                                             return 1;
                                         }))))
+                .then(Commands.literal("tour")
+                        .requires(source -> Perms.isAdmin(source))
+                        .executes(ctx -> tour(player(ctx.getSource()), 192, 8, "BALANCED"))
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(64, 1024))
+                                .executes(ctx -> tour(player(ctx.getSource()),
+                                        IntegerArgumentType.getInteger(ctx, "radius"), 8, "BALANCED"))
+                                .then(Commands.argument("count", IntegerArgumentType.integer(1, 32))
+                                        .executes(ctx -> tour(player(ctx.getSource()),
+                                                IntegerArgumentType.getInteger(ctx, "radius"),
+                                                IntegerArgumentType.getInteger(ctx, "count"), "BALANCED"))
+                                        .then(Commands.argument("strength", StringArgumentType.word())
+                                                .executes(ctx -> tour(player(ctx.getSource()),
+                                                        IntegerArgumentType.getInteger(ctx, "radius"),
+                                                        IntegerArgumentType.getInteger(ctx, "count"),
+                                                        StringArgumentType.getString(ctx, "strength")))))))
                 .then(Commands.literal("capture")
                         .executes(ctx -> capture(ctx.getSource(), "", ""))
                         .then(Commands.argument("title", StringArgumentType.string())
@@ -201,6 +216,16 @@ public final class GeoCommand {
                         + " " + tileX + "/" + tileZ + " pending";
         source.sendSuccess(() -> Component.literal(message), false);
         return 1;
+    }
+
+    private static int tour(ServerPlayer player, int radius, int count, String strength) {
+        int scheduled = manager().tour().start(player, radius, count, strength);
+        if (scheduled <= 0) {
+            manager().notice(player, "craftguessr.command.tour_empty", true);
+            return 0;
+        }
+        manager().notice(player, "craftguessr.command.tour_started", false);
+        return scheduled;
     }
 
     private static int capture(CommandSourceStack source, String title, String difficulty)
