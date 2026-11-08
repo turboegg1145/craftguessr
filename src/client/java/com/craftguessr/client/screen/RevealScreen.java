@@ -94,6 +94,7 @@ public final class RevealScreen extends Screen {
             g.text(font, Component.translatable(spot.difficulty().translationKey()).getString(),
                     sideX, 46, 0xFF90A4AE);
         }
+        drawGuessLines(g);
         List<RoundReveal.GuessOutcome> outcomes = reveal.sortedByScore();
         int rowY = 68;
         if (outcomes.isEmpty()) {
@@ -112,6 +113,51 @@ public final class RevealScreen extends Screen {
         }
         if (reveal.commentary() != null && !reveal.commentary().isBlank()) {
             g.text(font, reveal.commentary(), 10, height - 20, 0xFFB0BEC5);
+        }
+    }
+
+    /** Animated dashed lines from every guess to the true spot, the first half of the dual reveal. */
+    private void drawGuessLines(GuiGraphicsExtractor g) {
+        Spot spot = reveal.spot();
+        if (spot == null) {
+            return;
+        }
+        double ax = map.worldToScreenX(spot.x());
+        double ay = map.worldToScreenY(spot.z());
+        long time = System.currentTimeMillis();
+        for (RoundReveal.GuessOutcome outcome : reveal.outcomes()) {
+            if (!outcome.guessed() || outcome.distance() < 0) {
+                continue;
+            }
+            int color = outcome.distance() <= 50 ? 0xCC42A5F5 : 0xCCEF5350;
+            dashedLine(g, map.worldToScreenX(outcome.gx()), map.worldToScreenY(outcome.gz()), ax, ay, color, time);
+        }
+    }
+
+    private void dashedLine(GuiGraphicsExtractor g, double x1, double y1, double x2, double y2,
+                            int color, long time) {
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        double length = Math.hypot(dx, dy);
+        if (length < 2.0) {
+            return;
+        }
+        double ux = dx / length;
+        double uy = dy / length;
+        double dash = 5.0;
+        double period = 9.0;
+        double offset = (time % 900L) / 900.0 * period;
+        for (double d = -offset; d < length; d += period) {
+            double start = Math.max(0.0, d);
+            double end = Math.min(length, d + dash);
+            for (double p = start; p <= end; p += 1.0) {
+                int px = (int) Math.round(x1 + ux * p);
+                int py = (int) Math.round(y1 + uy * p);
+                if (!map.contains(px, py)) {
+                    continue;
+                }
+                g.fill(px, py, px + 2, py + 2, color);
+            }
         }
     }
 

@@ -240,6 +240,7 @@ public final class ServerGameManager {
         PlayerState state = room.players.remove(player.getUUID());
         if (restore && state != null) {
             restore(player, state.snapshot);
+            snapshots.remove(player.getUUID());
         }
         if (room.players.isEmpty()) {
             rooms.remove(room.id);
@@ -468,7 +469,6 @@ public final class ServerGameManager {
         player.setPermanentlyInvulnerable(snapshot.invulnerable());
         player.setHealth(Math.min(snapshot.health(), player.getMaxHealth()));
         player.fallDistance = 0.0F;
-        snapshots.remove(player.getUUID());
     }
 
     private BlockPos safeSpot(Spot spot, ServerLevel level) {
@@ -543,6 +543,7 @@ public final class ServerGameManager {
             return false;
         }
         restore(player, snapshot);
+        snapshots.remove(player.getUUID());
         return true;
     }
 

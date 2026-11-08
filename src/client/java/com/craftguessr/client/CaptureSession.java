@@ -11,6 +11,10 @@ import net.minecraft.network.chat.Component;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.NativeImage;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,6 +29,13 @@ public final class CaptureSession {
     private static final int VIEW_SIZE = 512;
     private static final int COLLAGE_SIZE = VIEW_SIZE * 2;
     private static final float[] OFFSETS = {180.0F, -90.0F, 0.0F, 90.0F};
+    private static final String[] LABELS = {
+            "[View A: NORTH (Yaw 180)]",
+            "[View B: EAST (Yaw -90)]",
+            "[View C: SOUTH (Yaw 0)]",
+            "[View D: WEST (Yaw 90)]"
+    };
+    private static final int CAPTURE_FOV = 90;
 
     private static CaptureSession active;
 
@@ -33,6 +44,7 @@ public final class CaptureSession {
     private final float baseYaw;
     private final float pitch;
     private final boolean hudWasHidden;
+    private final int previousFov;
     private final List<int[]> views = new ArrayList<>(4);
 
     private int index;
@@ -40,12 +52,14 @@ public final class CaptureSession {
     private boolean requesting;
     private boolean finished;
 
-    private CaptureSession(String title, String difficulty, float baseYaw, float pitch, boolean hudWasHidden) {
+    private CaptureSession(String title, String difficulty, float baseYaw, float pitch,
+                           boolean hudWasHidden, int previousFov) {
         this.title = title;
         this.difficulty = difficulty;
         this.baseYaw = baseYaw;
         this.pitch = pitch;
         this.hudWasHidden = hudWasHidden;
+        this.previousFov = previousFov;
     }
 
     public static boolean running() {
@@ -61,8 +75,10 @@ public final class CaptureSession {
         if (!hidden) {
             minecraft.gui.hud.toggle();
         }
+        int previousFov = minecraft.options.fov().get();
+        minecraft.options.fov().set(CAPTURE_FOV);
         active = new CaptureSession(title, difficulty, minecraft.player.getYRot(),
-                Math.max(-45.0F, Math.min(45.0F, minecraft.player.getXRot())), hidden);
+                Math.max(-45.0F, Math.min(45.0F, minecraft.player.getXRot())), hidden, previousFov);
         active.waitTicks = 10;
         minecraft.gui.setScreen(null);
     }
@@ -142,6 +158,7 @@ public final class CaptureSession {
                     collage.setRGB(qx, qy + y, VIEW_SIZE, 1, view, y * VIEW_SIZE, VIEW_SIZE);
                 }
             }
+            labelViews(collage);
             byte[] jpeg = ImageCollage.toJpeg(collage, 0.85F);
             if (minecraft.player != null) {
                 var position = minecraft.player.position();
@@ -155,6 +172,28 @@ public final class CaptureSession {
             message(minecraft, "craftguessr.capture.failed");
         } finally {
             end(minecraft);
+        }
+    }
+
+    /** Stamps the orientation watermarks the AI is told to look for. */
+    private static void labelViews(BufferedImage collage) {
+        try {
+            Graphics2D graphics = collage.createGraphics();
+            graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+            for (int i = 0; i < LABELS.length && i < 4; i++) {
+                int qx = (i % 2) * VIEW_SIZE;
+                int qy = (i / 2) * VIEW_SIZE;
+                int width = graphics.getFontMetrics().stringWidth(LABELS[i]) + 12;
+                graphics.setColor(Color.BLACK);
+                graphics.fillRect(qx, qy, width, 20);
+                graphics.setColor(Color.WHITE);
+                graphics.drawString(LABELS[i], qx + 6, qy + 15);
+            }
+            graphics.dispose();
+        } catch (RuntimeException | Error e) {
+            CraftGuessr.LOGGER.debug("Capture watermark skipped: {}", e.toString());
         }
     }
 
@@ -172,6 +211,7 @@ public final class CaptureSession {
         if (!hudWasHidden) {
             minecraft.gui.hud.toggle();
         }
+        minecraft.options.fov().set(previousFov);
         active = null;
     }
 

@@ -1,7 +1,6 @@
 package com.craftguessr.server.player;
 
 import com.mojang.serialization.Codec;
-import net.minecraft.core.UUIDUtil;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -33,9 +32,30 @@ public final class PlayerSnapshots extends SavedData {
         snapshots.putAll(initial);
     }
 
+    /** Exposed for tests and diagnostics. */
+    public static final Codec<PlayerSnapshots> CODECS = codec();
+
     private static Codec<PlayerSnapshots> codec() {
-        return Codec.unboundedMap(UUIDUtil.CODEC, Snapshot.CODEC)
-                .xmap(PlayerSnapshots::new, snapshots -> snapshots.snapshots);
+        // Saved-data maps require string keys; UUIDs are stored in their canonical text form.
+        return Codec.unboundedMap(Codec.STRING, Snapshot.CODEC)
+                .xmap(PlayerSnapshots::fromStrings, PlayerSnapshots::toStrings);
+    }
+
+    private static PlayerSnapshots fromStrings(Map<String, Snapshot> stored) {
+        Map<UUID, Snapshot> parsed = new LinkedHashMap<>();
+        stored.forEach((key, snapshot) -> {
+            try {
+                parsed.put(UUID.fromString(key), snapshot);
+            } catch (IllegalArgumentException ignored) {
+            }
+        });
+        return new PlayerSnapshots(parsed);
+    }
+
+    private static Map<String, Snapshot> toStrings(PlayerSnapshots data) {
+        Map<String, Snapshot> stored = new LinkedHashMap<>();
+        data.snapshots.forEach((uuid, snapshot) -> stored.put(uuid.toString(), snapshot));
+        return stored;
     }
 
     public Map<UUID, Snapshot> all() {
