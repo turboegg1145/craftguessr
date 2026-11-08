@@ -210,6 +210,9 @@ public final class ServerNetwork {
         if (level == null) {
             return;
         }
+        if (!manager.tiles().allow(player.getUUID())) {
+            return;
+        }
         byte[] png = manager.tiles().tile(level, payload.zoom(), payload.tileX(), payload.tileZ());
         ServerPlayNetworking.send(player, new Payloads.TileS2C(payload.dimension(), payload.zoom(),
                 payload.tileX(), payload.tileZ(), com.craftguessr.map.TileGrid.TILE_SIZE, png));

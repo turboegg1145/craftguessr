@@ -19,7 +19,7 @@ public final class CraftGuessrClient implements ClientModInitializer {
     // 26.3 key events deliver SDL scancodes, so bindings use scancode values.
     private static final int KEY_G = 10;
     private static final int KEY_M = 16;
-    private static final int KEY_P = 19;
+    private static final int KEY_B = 5; // B: vanilla leaves it unbound (P is Social Interactions)
 
     private static KeyMapping lobbyKey;
     private static KeyMapping mapKey;
@@ -42,7 +42,7 @@ public final class CraftGuessrClient implements ClientModInitializer {
         mapKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping("key.craftguessr.map", InputConstants.Type.KEYBOARD, KEY_M, category));
         poolKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping("key.craftguessr.pool", InputConstants.Type.KEYBOARD, KEY_P, category));
+                new KeyMapping("key.craftguessr.pool", InputConstants.Type.KEYBOARD, KEY_B, category));
 
         com.craftguessr.CraftGuessr.LOGGER.info("keybinds: lobby={} map={} pool={}",
                 lobbyKey.saveString(), mapKey.saveString(), poolKey.saveString());

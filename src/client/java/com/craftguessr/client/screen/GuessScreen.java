@@ -31,6 +31,11 @@ public final class GuessScreen extends Screen {
         if (round != null) {
             map.dimension = round.dimension();
         }
+        Payloads.PingS2C ping = ClientState.get().ping();
+        if (ping != null && map.centerX == 0.0 && map.centerZ == 0.0) {
+            map.centerX = ping.mapCenterX();
+            map.centerZ = ping.mapCenterZ();
+        }
         if (ClientState.get().roundStart() == null || ClientState.get().scanning()) {
             status = Component.translatable("gui.craftguessr.map.waiting_tiles");
         }

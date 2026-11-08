@@ -452,14 +452,17 @@ public final class Payloads {
         }
     }
 
-    public record PingS2C(String serverVersion, boolean aiReady) implements CustomPacketPayload {
+    public record PingS2C(String serverVersion, boolean aiReady, int mapCenterX, int mapCenterZ)
+            implements CustomPacketPayload {
         public static final Type<PingS2C> TYPE = packetType("ping");
         public static final StreamCodec<RegistryFriendlyByteBuf, PingS2C> CODEC = StreamCodec.of(
                 (buf, payload) -> {
                     NetCodec.writeId(buf, payload.serverVersion());
                     buf.writeBoolean(payload.aiReady());
+                    buf.writeVarInt(payload.mapCenterX());
+                    buf.writeVarInt(payload.mapCenterZ());
                 },
-                buf -> new PingS2C(buf.readUtf(), buf.readBoolean()));
+                buf -> new PingS2C(buf.readUtf(), buf.readBoolean(), buf.readVarInt(), buf.readVarInt()));
 
         @Override
         public Type<? extends CustomPacketPayload> type() {

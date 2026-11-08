@@ -60,7 +60,8 @@ public final class ClientNetwork {
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.TileS2C.TYPE, (payload, context) ->
                 context.client().execute(() -> ClientState.get().putTile(
-                        TileGrid.tileKey(payload.dimension(), payload.tileX(), payload.tileZ()), payload.png())));
+                        TileGrid.tileKey(payload.dimension(), payload.zoom(), payload.tileX(), payload.tileZ()),
+                        payload.png())));
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.NoticeS2C.TYPE, (payload, context) ->
                 context.client().execute(() -> {
@@ -79,8 +80,9 @@ public final class ClientNetwork {
         ClientPlayNetworking.registerGlobalReceiver(Payloads.PingS2C.TYPE, (payload, context) ->
                 context.client().execute(() -> {
                     ClientState.get().setPing(payload);
-                    CraftGuessr.LOGGER.info("CraftGuessr server {} (AI {})", payload.serverVersion(),
-                            payload.aiReady() ? "ready" : "not configured");
+                    CraftGuessr.LOGGER.info("CraftGuessr server {} (AI {}, map {},{})", payload.serverVersion(),
+                            payload.aiReady() ? "ready" : "not configured",
+                            payload.mapCenterX(), payload.mapCenterZ());
                 }));
     }
 

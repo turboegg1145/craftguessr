@@ -65,8 +65,9 @@ public final class CraftGuessr implements ModInitializer {
             if (manager == null) {
                 return;
             }
+            int[] center = manager.mapCenter();
             ServerPlayNetworking.send(handler.player, new Payloads.PingS2C(VERSION,
-                    !manager.settings().apiKey.isBlank()));
+                    !manager.settings().apiKey.isBlank(), center[0], center[1]));
             ServerNetwork.sendRoomList(handler.player);
         });
 

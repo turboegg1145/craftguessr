@@ -58,7 +58,7 @@ public final class ServerGameManager {
     private final Map<UUID, String> roomOf = new HashMap<>();
     private final ScanService scanService;
     private final com.craftguessr.ai.TokenLedger ledger = new com.craftguessr.ai.TokenLedger();
-    private final MapTileService tiles = new MapTileService();
+    private final MapTileService tiles = new MapTileService(CraftGuessr.dataDirectory().resolve("tiles"));
 
     public ServerGameManager(MinecraftServer server, GameSettings settings) {
         this.server = server;
@@ -133,6 +133,21 @@ public final class ServerGameManager {
 
     public com.craftguessr.ai.TokenLedger ledger() {
         return ledger;
+    }
+
+    /** Centroid of the spot pool, used as the default centre of the guess map. */
+    public int[] mapCenter() {
+        java.util.List<com.craftguessr.game.Spot> spots = repository.all();
+        if (spots.isEmpty()) {
+            return new int[]{0, 0};
+        }
+        long sumX = 0;
+        long sumZ = 0;
+        for (com.craftguessr.game.Spot spot : spots) {
+            sumX += spot.x();
+            sumZ += spot.z();
+        }
+        return new int[]{(int) (sumX / spots.size()), (int) (sumZ / spots.size())};
     }
 
     public MapTileService tiles() {
@@ -470,6 +485,7 @@ public final class ServerGameManager {
     // ================================================================ tick
 
     public void tick() {
+        tiles.tick();
         long now = System.currentTimeMillis();
         scanService.tick();
         List<Room> snapshot = new ArrayList<>(rooms.values());

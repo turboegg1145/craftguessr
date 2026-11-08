@@ -16,7 +16,7 @@ import java.util.List;
 /** Pannable, zoomable north-up map canvas fed by server-side tile PNGs. */
 public final class MapView {
 
-    private static final double MIN_SCALE = 1.0 / 8.0;
+    private static final double MIN_SCALE = 1.0 / 16.0;
     private static final double MAX_SCALE = 8.0;
     private static final int MAX_VISIBLE_TILES = 512;
 
@@ -113,32 +113,35 @@ public final class MapView {
     }
 
     private void drawTiles(GuiGraphicsExtractor g) {
-        int tilePx = (int) Math.max(1, Math.round(TileGrid.TILE_SIZE * scale));
-        int minTileX = TileGrid.tileOf((int) Math.floor(screenToWorldX(x)));
-        int maxTileX = TileGrid.tileOf((int) Math.floor(screenToWorldX(x + width)));
-        int minTileZ = TileGrid.tileOf((int) Math.floor(screenToWorldY(y)));
-        int maxTileZ = TileGrid.tileOf((int) Math.floor(screenToWorldY(y + height)));
+        int lod = TileGrid.lodForScale(scale);
+        int span = TileGrid.blocksPerTile(lod);
+        double tilePx = span * scale;
+        int minTileX = Math.floorDiv((int) Math.floor(screenToWorldX(x)), span);
+        int maxTileX = Math.floorDiv((int) Math.floor(screenToWorldX(x + width)), span);
+        int minTileZ = Math.floorDiv((int) Math.floor(screenToWorldY(y)), span);
+        int maxTileZ = Math.floorDiv((int) Math.floor(screenToWorldY(y + height)), span);
         long count = (long) (maxTileX - minTileX + 1) * (maxTileZ - minTileZ + 1);
         boolean tooMany = count > MAX_VISIBLE_TILES;
         for (int tileX = minTileX; tileX <= maxTileX; tileX++) {
             for (int tileZ = minTileZ; tileZ <= maxTileZ; tileZ++) {
-                double sx = worldToScreenX((double) tileX * TileGrid.TILE_SIZE);
-                double sy = worldToScreenY((double) tileZ * TileGrid.TILE_SIZE);
+                double sx = worldToScreenX((double) tileX * span);
+                double sy = worldToScreenY((double) tileZ * span);
                 if (tooMany) {
                     g.fill((int) sx, (int) sy, (int) sx + 2, (int) sy + 2, 0x33FFFFFF);
                     continue;
                 }
-                Identifier texture = ClientImages.get(ClientImages.tileKey(dimension, tileX, tileZ));
+                String key = ClientImages.tileKey(dimension, lod, tileX, tileZ);
+                Identifier texture = ClientImages.get(key);
                 if (texture == null) {
-                    g.fill((int) sx, (int) sy, (int) sx + tilePx, (int) sy + tilePx, 0x99131C24);
-                    if (ClientState.get().shouldRequestTile(TileGrid.tileKey(dimension, tileX, tileZ))) {
-                        ClientPlayNetworking.send(new Payloads.TileRequestC2S(dimension, 2, tileX, tileZ));
+                    g.fill((int) sx, (int) sy, (int) (sx + tilePx), (int) (sy + tilePx), 0x99131C24);
+                    if (ClientState.get().shouldRequestTile(key)) {
+                        ClientPlayNetworking.send(new Payloads.TileRequestC2S(dimension, lod, tileX, tileZ));
                     }
                     continue;
                 }
                 g.pose().pushMatrix();
                 g.pose().translate((float) sx, (float) sy);
-                g.pose().scale((float) scale, (float) scale);
+                g.pose().scale((float) (tilePx / TileGrid.TILE_SIZE), (float) (tilePx / TileGrid.TILE_SIZE));
                 g.blit(RenderPipelines.GUI_TEXTURED, texture, 0, 0, 0.0F, 0.0F,
                         TileGrid.TILE_SIZE, TileGrid.TILE_SIZE, TileGrid.TILE_SIZE, TileGrid.TILE_SIZE);
                 g.pose().popMatrix();

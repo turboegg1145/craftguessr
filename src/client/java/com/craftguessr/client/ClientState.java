@@ -185,7 +185,7 @@ public final class ClientState {
         if (tiles.containsKey(key)) {
             return false;
         }
-        return throttle(tileRequests, key, 5_000L, 4096);
+        return throttle(tileRequests, key, 1_500L, 4096);
     }
 
     public boolean shouldRequestThumb(String spotId) {
