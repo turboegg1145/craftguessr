@@ -1,31 +1,31 @@
 {
 	"schemaVersion": 1,
-	"id": "modid",
+	"id": "craftguessr",
 	"version": "${version}",
-	"name": "Example Mod",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "CraftGuessr",
+	"description": "Multiplayer real-world GeoGuessr for Minecraft: AI-picked scenic spots, a native surface map, immersive observation rounds and a double reveal with 2D map lines and 3D hologram beams.",
 	"authors": [
-		"Me!"
+		"CraftGuessr"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "https://github.com/turboegg1145/craftguessr",
+		"sources": "https://github.com/turboegg1145/craftguessr"
 	},
-	"license": "CC0-1.0",
-	"icon": "assets/modid/icon.png",
+	"license": "MIT",
+	"icon": "assets/craftguessr/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.example.ExampleMod"
+			"com.craftguessr.CraftGuessr"
 		],
 		"client": [
-			"com.example.client.ExampleModClient"
+			"com.craftguessr.client.CraftGuessrClient"
 		]
 	},
 	"mixins": [
-		"modid.mixins.json",
+		"craftguessr.mixins.json",
 		{
-			"config": "modid.client.mixins.json",
+			"config": "craftguessr.client.mixins.json",
 			"environment": "client"
 		}
 	],
