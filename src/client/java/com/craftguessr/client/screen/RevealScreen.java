@@ -65,6 +65,15 @@ public final class RevealScreen extends Screen {
                             button -> ClientPlayNetworking.send(new Payloads.NextRoundC2S()))
                     .bounds(width - SIDE_WIDTH - 4, height - 26, SIDE_WIDTH - 8, 20).build());
         }
+        Spot revealSpot = reveal.spot();
+        if (revealSpot != null && revealSpot.dimension().contains("the_nether")) {
+            addRenderableWidget(Button.builder(layerLabel(),
+                            button -> {
+                                map.layer = (map.layer + 1) % 3;
+                                button.setMessage(layerLabel());
+                            })
+                    .bounds(width - SIDE_WIDTH - 4, height - 74, SIDE_WIDTH - 8, 20).build());
+        }
         addRenderableWidget(Button.builder(Component.translatable("gui.craftguessr.lobby.leave"),
                         button -> {
                             ClientPlayNetworking.send(new Payloads.LeaveRoomC2S());
@@ -72,6 +81,10 @@ public final class RevealScreen extends Screen {
                             minecraft.gui.setScreen(new LobbyScreen());
                         })
                 .bounds(width - SIDE_WIDTH - 4, height - 50, SIDE_WIDTH - 8, 20).build());
+    }
+
+    private static Component layerLabel() {
+        return Component.translatable("gui.craftguessr.map.layer");
     }
 
     @Override

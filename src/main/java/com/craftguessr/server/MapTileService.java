@@ -117,6 +117,22 @@ public final class MapTileService {
     }
 
     /** Advance pending tile renders; called from the server tick. */
+    /** Schedules the tiles covering a spot so the reveal map is ready before it is shown. */
+    public void prefetch(ServerLevel level, int blockX, int blockZ, int radiusBlocks) {
+        for (int lod = 0; lod <= 0; lod++) {
+            int span = TileGrid.blocksPerTile(lod);
+            int minX = Math.floorDiv(blockX - radiusBlocks, span);
+            int maxX = Math.floorDiv(blockX + radiusBlocks, span);
+            int minZ = Math.floorDiv(blockZ - radiusBlocks, span);
+            int maxZ = Math.floorDiv(blockZ + radiusBlocks, span);
+            for (int tx = minX; tx <= maxX; tx++) {
+                for (int tz = minZ; tz <= maxZ; tz++) {
+                    tile(level, lod, tx, tz, 0);
+                }
+            }
+        }
+    }
+
     public void tick() {
         if (pending.isEmpty()) {
             return;

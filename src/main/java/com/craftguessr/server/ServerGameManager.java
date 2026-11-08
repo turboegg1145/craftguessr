@@ -351,6 +351,9 @@ public final class ServerGameManager {
             state.guessedAtMillis = 0L;
         }
         ServerLevel level = levelOf(room.spot.dimension());
+        if (level != null) {
+            tiles.prefetch(level, room.spot.x(), room.spot.z(), 128);
+        }
         for (PlayerState state : room.players.values()) {
             ServerPlayer player = online(state.uuid);
             if (player == null) {
@@ -530,6 +533,9 @@ public final class ServerGameManager {
             }
             if (now - room.lastStateMillis >= 1000L) {
                 broadcastState(room, false);
+                if (room.phase == GamePhase.REVEAL) {
+                    spawnRevealFx(room);
+                }
             }
         }
         protectTick();
@@ -790,6 +796,23 @@ public final class ServerGameManager {
         for (int i = 0; i < 48; i++) {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD,
                     room.spot.x() + 0.5, y + 0.4 + i * 0.6, room.spot.z() + 0.5, 1, 0.05, 0.02, 0.05, 0.0);
+        }
+        for (PlayerState state : room.players.values()) {
+            Guess guess = state.guess;
+            if (guess == null) {
+                continue;
+            }
+            ServerLevel guessLevel = levelOf(guess.dimension());
+            if (guessLevel == null) {
+                continue;
+            }
+            int guessY = guessLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING,
+                    guess.x(), guess.z());
+            for (int i = 0; i < 6; i++) {
+                guessLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD,
+                        guess.x() + 0.5, guessY + 0.2 + i * 0.7, guess.z() + 0.5, 1,
+                        0.08, 0.02, 0.08, 0.0);
+            }
         }
     }
 
