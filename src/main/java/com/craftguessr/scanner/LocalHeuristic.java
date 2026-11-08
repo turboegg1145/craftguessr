@@ -18,18 +18,20 @@ public final class LocalHeuristic {
             return Verdict.reject("no blocks sampled");
         }
         // Hard rejects: physically unusable viewpoints.
-        if (stats.enclosedRatio() > 0.5) {
+        if (stats.enclosedRatio() > 0.8) {
             return Verdict.reject("enclosed (walls on most sides)");
         }
         if (stats.openSightLines() < strength.minOpenSightLines()) {
             return Verdict.reject("blocked sight lines " + stats.openSightLines() + "/" + stats.totalSightLines());
         }
-        if (stats.airRatio() < 0.25) {
+        if (stats.airRatio() < 0.10) {
             return Verdict.reject("buried in solid material");
         }
 
-        boolean hasManMade = stats.inhabitedBlocks() >= strength.minInhabited()
-                && stats.artificialRatio() >= strength.minArtificialRatio()
+        // Imported/creative worlds have no accumulated inhabited time, so that signal is a
+        // ranking bonus only; man-made density and block variety are what actually identify
+        // a build. Inhabited time still boosts the score in manMadeScore().
+        boolean hasManMade = stats.artificialRatio() >= strength.minArtificialRatio()
                 && stats.distinctTypes() >= strength.minDiversity();
 
         if (strength == FilterStrength.WILD) {
@@ -45,9 +47,6 @@ public final class LocalHeuristic {
     }
 
     private static String missReason(BlockStats stats, FilterStrength strength) {
-        if (stats.inhabitedBlocks() < strength.minInhabited()) {
-            return "inhabited-time " + stats.inhabitedBlocks() + " < " + strength.minInhabited();
-        }
         if (stats.artificialRatio() < strength.minArtificialRatio()) {
             return String.format(java.util.Locale.ROOT, "artificial %.1f%% < %.1f%%",
                     stats.artificialRatio() * 100, strength.minArtificialRatio() * 100);

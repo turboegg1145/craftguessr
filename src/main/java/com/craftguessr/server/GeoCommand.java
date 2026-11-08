@@ -6,6 +6,7 @@ import com.craftguessr.ai.AiException;
 import com.craftguessr.game.GameSettings;
 import com.craftguessr.game.RoomSettings;
 import com.craftguessr.network.Payloads;
+import com.craftguessr.scanner.WorldSampler;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -95,6 +96,16 @@ public final class GeoCommand {
                                         .executes(ctx -> capture(ctx.getSource(),
                                                 StringArgumentType.getString(ctx, "title"),
                                                 StringArgumentType.getString(ctx, "difficulty"))))))
+                .then(Commands.literal("probe")
+                        .executes(ctx -> {
+                            ServerPlayer player = player(ctx.getSource());
+                            int x = (int) Math.floor(player.getX());
+                            int z = (int) Math.floor(player.getZ());
+                            String info = WorldSampler.describe((net.minecraft.server.level.ServerLevel) player.level(), x, z);
+                            CraftGuessr.LOGGER.info("probe @{},{}: {}", x, z, info);
+                            ctx.getSource().sendSuccess(() -> Component.literal(info), false);
+                            return 1;
+                        }))
                 .then(Commands.literal("tokens")
                         .executes(ctx -> {
                             ServerGameManager manager = manager();

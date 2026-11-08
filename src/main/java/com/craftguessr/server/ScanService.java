@@ -38,7 +38,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class ScanService {
 
-    private static final int MAX_CANDIDATES = 500;
+    private static final int MAX_CANDIDATES = 400;
     private static final int MAX_JUDGED = 16;
     private static final int VIEW_SIZE = 64;
     private static final int COLLAGE_SIZE = 256;
@@ -121,7 +121,7 @@ public final class ScanService {
             long completionBefore = ledger.completionTokens();
 
             progress(job, "craftguessr.scan.filtering", 2, kept, rejected, 0, 0, "scan", false);
-            List<Candidate> candidates = collect(level, job);
+            List<Candidate> candidates = collectOnServerThread(level, job);
             int filtered = candidates.size();
             progress(job, "craftguessr.scan.judging", 35, kept, rejected, 0, 0,
                     filtered + " candidates", false);
@@ -143,7 +143,11 @@ public final class ScanService {
                         ledger.promptTokens() - promptBefore, ledger.completionTokens() - completionBefore,
                         candidate.sample().stats().artificialRatio() > 0.08 ? "built" : "wild", false);
                 try {
-                    BufferedImage collage = collage(level, candidate.sample());
+                    BufferedImage collage = collageOnServerThread(level, candidate.sample());
+                    if (collage == null) {
+                        rejected++;
+                        continue;
+                    }
                     byte[] jpeg = ImageCollage.toJpeg(collage, 0.82F);
                     ScanVerdict verdict = ai.judge(jpeg, candidate.sample().context(), settings.aiCommentary);
                     judged++;
@@ -190,45 +194,117 @@ public final class ScanService {
         }
     }
 
+    /** Chunk/heightmap reads are only reliable on the server thread, so the sampling pass runs there. */
+    private List<Candidate> collectOnServerThread(ServerLevel level, ScanJob job) {
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        List<List<Candidate>> holder = new ArrayList<>(1);
+        manager.server().execute(() -> {
+            try {
+                holder.add(collect(level, job));
+            } finally {
+                latch.countDown();
+            }
+        });
+        try {
+            if (!latch.await(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                CraftGuessr.LOGGER.warn("scan collect timed out after 30s");
+                return List.of();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return List.of();
+        }
+        return holder.isEmpty() ? List.of() : holder.get(0);
+    }
+
     private List<Candidate> collect(ServerLevel level, ScanJob job) {
         int radius = job.radius;
-        int step = Math.max(24, radius / 12);
+        int step = Math.max(8, radius / 32);
         List<Candidate> candidates = new ArrayList<>();
+        java.util.Map<String, Integer> reasons = new java.util.TreeMap<>();
         int sampled = 0;
-        outer:
+        int failures = 0;
+        int unloaded = 0;
+        // Nearest-first, so the samples that actually exist in loaded chunks are the ones we spend on.
+        List<int[]> offsets = new ArrayList<>();
         for (int dx = -radius; dx <= radius; dx += step) {
             for (int dz = -radius; dz <= radius; dz += step) {
-                if (job.cancelled || sampled >= MAX_CANDIDATES) {
-                    break outer;
-                }
-                if (Math.hypot(dx, dz) > radius) {
-                    continue;
-                }
-                int x = job.centerX + dx + ThreadLocalRandom.current().nextInt(-step / 3, step / 3 + 1);
-                int z = job.centerZ + dz + ThreadLocalRandom.current().nextInt(-step / 3, step / 3 + 1);
-                sampled++;
-                WorldSampler.Sample sample;
-                try {
-                    sample = WorldSampler.sample(level, x, z);
-                } catch (RuntimeException e) {
-                    continue;
-                }
-                if (sample == null) {
-                    continue;
-                }
-                LocalHeuristic.Verdict verdict;
-                try {
-                    verdict = LocalHeuristic.evaluate(sample.stats(), job.filter);
-                } catch (RuntimeException e) {
-                    continue;
-                }
-                if (verdict.pass()) {
-                    candidates.add(new Candidate(sample, verdict.score()));
+                if (dx * dx + dz * dz <= radius * radius) {
+                    offsets.add(new int[]{dx, dz});
                 }
             }
         }
+        offsets.sort(Comparator.comparingDouble(o -> o[0] * (double) o[0] + o[1] * (double) o[1]));
+        outer:
+        for (int[] offset : offsets) {
+            if (job.cancelled || sampled >= MAX_CANDIDATES) {
+                break;
+            }
+            int dx = offset[0];
+            int dz = offset[1];
+            int x = job.centerX + dx + ThreadLocalRandom.current().nextInt(-step / 4, step / 4 + 1);
+            int z = job.centerZ + dz + ThreadLocalRandom.current().nextInt(-step / 4, step / 4 + 1);
+            if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) {
+                unloaded++;
+                continue outer;
+            }
+            sampled++;
+            WorldSampler.Sample sample;
+            try {
+                sample = WorldSampler.sample(level, x, z);
+            } catch (RuntimeException e) {
+                if (failures++ < 3) {
+                    CraftGuessr.LOGGER.warn("sample failed at {},{}", x, z, e);
+                }
+                continue;
+            }
+            if (sample == null) {
+                reasons.merge("null", 1, Integer::sum);
+                if (failures++ < 3) {
+                    CraftGuessr.LOGGER.info("null sample at {},{}: {}", x, z,
+                            WorldSampler.describe(level, x, z));
+                }
+                continue;
+            }
+            LocalHeuristic.Verdict verdict;
+            try {
+                verdict = LocalHeuristic.evaluate(sample.stats(), job.filter);
+            } catch (RuntimeException e) {
+                if (failures++ < 3) {
+                    CraftGuessr.LOGGER.warn("heuristic failed at {},{}", x, z, e);
+                }
+                continue;
+            }
+            if (verdict.pass()) {
+                candidates.add(new Candidate(sample, verdict.score()));
+            } else {
+                reasons.merge(verdict.reason(), 1, Integer::sum);
+            }
+        }
         candidates.sort(Comparator.comparingDouble(Candidate::score).reversed());
+        CraftGuessr.LOGGER.info("scan collect: sampled={} pass={} unloaded={} rejects={}",
+                sampled, candidates.size(), unloaded, reasons);
         return candidates;
+    }
+
+    private BufferedImage collageOnServerThread(ServerLevel level, WorldSampler.Sample sample) {
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        List<BufferedImage> holder = new ArrayList<>(1);
+        manager.server().execute(() -> {
+            try {
+                holder.add(collage(level, sample));
+            } catch (RuntimeException e) {
+                CraftGuessr.LOGGER.warn("collage failed at {},{}", sample.x(), sample.z(), e);
+            } finally {
+                latch.countDown();
+            }
+        });
+        try {
+            latch.await(20, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return holder.isEmpty() ? null : holder.get(0);
     }
 
     private BufferedImage collage(ServerLevel level, WorldSampler.Sample sample) {

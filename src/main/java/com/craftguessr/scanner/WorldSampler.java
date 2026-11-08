@@ -40,6 +40,27 @@ public final class WorldSampler {
     private WorldSampler() {
     }
 
+    /** Diagnostic one-liner used by /geo probe. */
+    public static String describe(ServerLevel level, int x, int z) {
+        boolean loaded = level.getChunkSource().getChunkNow(x >> 4, z >> 4) != null;
+        int minY = level.getMinY();
+        int maxY = level.getMaxY();
+        int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+        StringBuilder sb = new StringBuilder("chunk=" + loaded + " minY=" + minY + " maxY=" + maxY
+                + " surface=" + surface);
+        if (loaded) {
+            BlockState ground = level.getBlockState(new BlockPos(x, surface - 1, z));
+            BlockState head = level.getBlockState(new BlockPos(x, surface, z));
+            sb.append(" ground=").append(BlockClassifier.id(ground))
+                    .append(" fluid=").append(!ground.getFluidState().isEmpty())
+                    .append(" headAir=").append(head.isAir())
+                    .append(" id=").append(BlockClassifier.id(head))
+                    .append(" worldSurface=").append(level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z))
+                    .append(" oceanFloor=").append(level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z));
+        }
+        return sb.toString();
+    }
+
     /** @return null when the candidate is unusable (unloaded chunk, ocean, bedrock void…) */
     public static Sample sample(ServerLevel level, int x, int z) {
         if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) {
@@ -113,10 +134,14 @@ public final class WorldSampler {
             double yaw = Math.toRadians(i * (360.0 / SIGHT_RAYS));
             Vec3 target = new Vec3(eye.x - Math.sin(yaw) * SIGHT_DISTANCE, eye.y,
                     eye.z + Math.cos(yaw) * SIGHT_DISTANCE);
-            BlockHitResult hit = level.clip(new ClipContext(eye, target, ClipContext.Block.OUTLINE,
-                    ClipContext.Fluid.NONE, CollisionContext.empty()));
-            if (hit.getType() == HitResult.Type.MISS || hit.getLocation().distanceTo(eye) > 24.0) {
-                open++;
+            try {
+                BlockHitResult hit = level.clip(new ClipContext(eye, target, ClipContext.Block.OUTLINE,
+                        ClipContext.Fluid.NONE, CollisionContext.empty()));
+                if (hit.getType() == HitResult.Type.MISS || hit.getLocation().distanceTo(eye) > 24.0) {
+                    open++;
+                }
+            } catch (RuntimeException ignored) {
+                // Broken chunk data in imported worlds must not fail the whole sample.
             }
         }
         int enclosed = 0;
@@ -124,8 +149,11 @@ public final class WorldSampler {
             double yaw = Math.toRadians(i * 90.0);
             BlockPos side = new BlockPos(x + (int) Math.round(-Math.sin(yaw) * 2.0), surface + 1,
                     z + (int) Math.round(Math.cos(yaw) * 2.0));
-            if (level.getBlockState(side).isSolidRender()) {
-                enclosed++;
+            try {
+                if (level.getBlockState(side).isSolidRender()) {
+                    enclosed++;
+                }
+            } catch (RuntimeException ignored) {
             }
         }
         double enclosedRatio = enclosed / 4.0;

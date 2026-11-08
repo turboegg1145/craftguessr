@@ -61,7 +61,12 @@ public final class SurfaceView {
             if (pos.getY() < level.getMinY() || pos.getY() >= level.getMaxY()) {
                 break;
             }
-            BlockState state = level.getBlockState(pos);
+            BlockState state;
+            try {
+                state = level.getBlockState(pos);
+            } catch (RuntimeException e) {
+                return sky;
+            }
             boolean liquid = !state.getFluidState().isEmpty();
             if (state.isAir() && !liquid) {
                 continue;
