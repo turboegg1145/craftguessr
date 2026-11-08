@@ -3,11 +3,14 @@ package com.craftguessr.server;
 import com.craftguessr.CraftGuessr;
 import com.craftguessr.game.Spot;
 import com.craftguessr.game.SpotRepository;
+import com.craftguessr.map.ImageCollage;
+import com.craftguessr.map.SurfaceView;
 import com.craftguessr.network.Payloads;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -153,8 +156,12 @@ public final class ServerNetwork {
             Spot spot = new Spot(id, payload.dimension(), payload.x(), payload.y(), payload.z(),
                     payload.yaw(), payload.pitch(), com.craftguessr.ai.ScanVerdict.Difficulty.MEDIUM,
                     "", "", "", Spot.Source.MANUAL, System.currentTimeMillis());
-            if (payload.collageJpeg() != null && payload.collageJpeg().length > 0) {
-                String thumb = manager.repository().saveThumbnail(id, payload.collageJpeg());
+            byte[] collage = payload.collageJpeg();
+            if (collage == null || collage.length == 0) {
+                collage = renderPreview(level, payload.x(), payload.y(), payload.z(), payload.yaw());
+            }
+            if (collage != null && collage.length > 0) {
+                String thumb = manager.repository().saveThumbnail(id, collage);
                 spot = spot.withThumbnail(thumb);
             }
             if (manager.repository().containsPosition(spot)) {
@@ -167,6 +174,26 @@ public final class ServerNetwork {
         } catch (IOException e) {
             CraftGuessr.LOGGER.warn("Manual spot submit failed: {}", e.toString());
             manager.notice(player, "craftguessr.message.spot_failed", true);
+        }
+    }
+
+    /**
+     * Server-side fallback preview: four raymarched surface views stitched into one collage so a
+     * manual spot still gets a picture even though the client sent no capture.
+     */
+    private static byte[] renderPreview(ServerLevel level, int x, int y, int z, float yaw) {
+        int view = 128;
+        int eye = y + 1;
+        List<BufferedImage> views = List.of(
+                SurfaceView.render(level, x, eye, z, yaw + 180.0F, view),
+                SurfaceView.render(level, x, eye, z, yaw - 90.0F, view),
+                SurfaceView.render(level, x, eye, z, yaw, view),
+                SurfaceView.render(level, x, eye, z, yaw + 90.0F, view));
+        try {
+            return ImageCollage.toJpeg(ImageCollage.collage(views, view), 0.85F);
+        } catch (IOException e) {
+            CraftGuessr.LOGGER.warn("Preview collage failed at {} {} {}: {}", x, y, z, e.toString());
+            return null;
         }
     }
 

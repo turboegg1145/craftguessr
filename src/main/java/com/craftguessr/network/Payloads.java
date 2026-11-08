@@ -24,7 +24,7 @@ public final class Payloads {
     }
 
     private static CustomPacketPayload.Type<CustomPacketPayload> rawType(String path) {
-        return CustomPacketPayload.createType(Identifier.fromNamespaceAndPath("craftguessr", path).toString());
+        return new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("craftguessr", path));
     }
 
     @SuppressWarnings("unchecked")
