@@ -49,6 +49,7 @@ public abstract class net.minecraft.client.gui.screens.Screen
   protected void removeWidget(net.minecraft.client.gui.components.events.GuiEventListener);
   protected void clearWidgets();
   protected void rebuildWidgets();
+  protected void repositionElements();
 }
 ```
 
@@ -61,7 +62,8 @@ VERIFIED ABSENT from the `Screen` dump: `render`, `renderBackground`, `drawStrin
 `mouseDragged`, `mouseReleased`, `mouseScrolled`, `charTyped`.
 
 - There is no `render`. Per-frame drawing is `extractRenderState(GuiGraphicsExtractor, int mouseX, int mouseY, float partialTick)`; `extractRenderStateWithTooltipAndSubtitles` is `final` (engine entry point — never call/override it).
-- `init(int,int)` is `final`; override `protected void init()` and register widgets with `addRenderableWidget(...)`. `width`/`height`/`font` are already set when `init()` runs.
+- `init(int,int)` is `final`; override `protected void init()` and register widgets with `addRenderableWidget(...)`. Bytecode of `init(int,int)`: it writes `width`/`height`, then calls `init()` **only the first time** (`initialized` flag) — later resizes call `repositionElements()` instead, so layout math must live in `protected void repositionElements()` (or `resize`) as well.
+- `width`/`height`/`font` are set before `init()` runs; `width`/`height` are public int fields.
 - Mouse/char events arrive as the new record types (`MouseButtonEvent`, `KeyEvent`, `CharacterEvent`) — the old `(double,double,int)` signatures no longer exist. `Screen` only overrides `keyPressed`.
 - Minecraft instance is the field `this.minecraft` (protected final); `Minecraft.getInstance()` also exists but is not needed.
 
